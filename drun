@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby18
 
-# drun gnrom run dialog
+# drun gnome run dialog
 # Copyright (C) 2008 David Maciver
 #
 # This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,8 @@ require 'gtk2'
 
 PATH = ENV['PATH'].split(':')
 HOME = ENV['HOME']
-HistFile = "#{HOME}/.completehist"
+HistFile = "#{HOME}/.drun-history"
+ConfigFile = "#{HOME}/.drunrc"
 
 # If a directory is passed, then that is what the CWD is set to.
 # If filenames are passed, then the CWD is the location of the first file and the files are added as arguments
@@ -34,6 +35,31 @@ if ARGV.length > 0
 		$execargs = ARGV.map{ |x| "\"#{x}\"" }.join(' ')
 		$execpath = ARGV[0][0..ARGV[0].rindex('/')] if ARGV[0][0..0] == '/'
 	end
+end
+
+class Configuration
+	def initialize(configfile)
+		@httpHandler = "firefox"
+		@sshHandler = "xterm -e ssh"
+		@fileHandler = "gnome-open"
+		@directoryHandler = "nautilus"
+
+		return if not File.exists? configfile
+
+		File.readlines(configfile).each { |line|
+			if line =~ /^\s*http-handler\s*=(.*)/i
+				@httpHandler = $1.strip
+			elsif line =~ /^\s*ssh-handler\s*=(.*)/i
+				@sshHandler = $1.strip
+			elsif line =~ /^\s*file-handler\s*=(.*)/i
+				@fileHandler = $1.strip
+			elsif line =~ /^\s*directory-handler\s*=(.*)/i
+				@directoryHandler = $1.strip
+			end
+		}
+	end
+
+	attr_reader :httpHandler, :sshHandler, :fileHandler, :directoryHandler
 end
 
 # Keeps a history of recently run commands along with how many times they were run, reading/writing them to a file
@@ -139,28 +165,39 @@ class Completion
 	end
 
 	def execInput(input)
-		# Run a command, calling other programs for various URIs
+		config = Configuration.new(ConfigFile)
+
+		input = expandHome(input)
+
+		# Find program corresponding to a url
 		if input =~ /^(\w*):\/\/(.*)/
-			prog = 'firefox' if $1 == 'http'
-			prog = 'thunar' if $1 == 'file'
+			prog = config.httpHandler if $1 == 'http'
+			prog = config.fileHandler if $1 == 'file'
 			if $1 == 'ssh'
 				input.gsub!(/ssh:\/\//, '')
-				prog = "terminal -x ssh"
+				prog = config.sshHandler
 			end
-		elsif input.index('/') == 0
-			prog = 'thunar'
 		end
 
-		if prog
-			input = "#{prog} #{input}"
-		else
-			which = `which #{input} 2>/dev/null`
+		if not prog
+			prefix, _ = getPrefixSuffix(input)
 
-			return false if which == ''
+			prefix = unescape(prefix.strip)
 
-			prog = "exo-open" if not File.executable? which
+			return if prefix == ''
+
+			if not which(prefix)
+				if File.directory? prefix
+					prog = config.directoryHandler
+				elsif not File.executable? prefix and File.file? prefix
+					prog = config.fileHandler
+				elsif not File.executable? prefix
+					return
+				end
+			end
 		end
 
+		input = "#{prog} #{input}"
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
@@ -169,31 +206,63 @@ class Completion
 		return true
 	end
 private
-	def getCompletionCorrections(input, corrections)
-		# Complete the text after the last space (with even number of backslashes before it)
-		i = nil
-		match = input.match(/^[^\\]*(\\\\)*( )/)
-		i = match.offset(2)[0] if match
+	def unescape(input)
+		# Remove the first backslash of a backslash followed by a space or backslash
 
-		if i
-			prefix = input[0..i]
-			suffix = input[i+1..-1]
+		s = ''
+		while input.length > 0
+			if input =~ /^\\/
+				s += input[1..1]
+				input = input[2..-1]
+			else
+				s += input[0..0]
+				input = input[1..-1]
+			end
+		end
+		s
+	end
 
-			c = getCompletionHist(input.gsub(/\\ /, ' '), corrections)
-			c += getCompletionPartial(suffix.gsub(/\\ /, ' '), corrections).map { |x| prefix + x }
-			c.uniq
+	def escape(input)
+		# Add a backslash before every space or backslash
+
+		input.gsub(/( |\\)/, "\\\\\\1")
+	end
+
+	def getPrefixSuffix(input)
+		# Return the parts of a string before and after the first unescaped space
+
+		if input =~ /^(([^ \\]|(\\ )|(\\\\))*)( .*)/
+			return $1, $5[1..-1]
 		else
-			getCompletionPartial(input.gsub(/\\ /, ' '), corrections)
+			return input, nil
 		end
 	end
 
+	def which(file)
+		# Return the full path to an executable file by searching the path variable
 
-	def getCompletionPartial(input, corrections)
-		ret = []
+		PATH.each { |dir|
+			f = "#{dir}/#{file}"
+			return f if File.executable? f and not File.directory? f
+		}
+		return nil
+	end
 
-		return ret if input.length == 0
+	def getCompletionCorrections(input, corrections)
+		# Complete the text after the last space
 
-		# Expand home
+		prefix, suffix = getPrefixSuffix(input)
+
+		if suffix
+			c = getCompletionHist(unescape(input), corrections)
+			c += getCompletionPartial(unescape(suffix), corrections).map { |x| "#{prefix} #{x}" }
+			c.uniq
+		else
+			getCompletionPartial(unescape(input), corrections)
+		end
+	end
+
+	def expandHome(input)
 		match = input.match(/^~[^\/]*/)
 		if match
 			begin
@@ -201,6 +270,16 @@ private
 			rescue
 			end
 		end
+
+		input
+	end
+
+	def getCompletionPartial(input, corrections)
+		ret = []
+
+		return ret if input.length == 0
+
+		input = expandHome(input)
 
 		if input[0].chr == '/' or input =~ /^file:\/\//
 			# Complete absolute path
@@ -231,7 +310,7 @@ private
 		end
 		beginsWith(Dir.glob(glob), input, corrections).map { |x|
 			x = File.directory?(x) ? "#{x}/" : x
-			x.gsub(/ /, '\\ ')
+			x = escape(x)
 		}
 	end
 
@@ -261,7 +340,7 @@ private
 
 	def filesInDir(dir)
 		# Gets a list of all files in dir
-		Dir.glob("#{dir}/*").map { |x| File.basename(x).gsub(/ /, '\\ ') }
+		Dir.glob("#{dir}/*").map { |x| escape(File.basename(x)) }
 	end
 
 	def beginsWith(list, prefix, corrections)
@@ -348,8 +427,10 @@ class CompletionWindow < Gtk::Window
 		down ||= event.keyval == Gdk::Keyval::GDK_Tab
 		up = event.keyval == Gdk::Keyval::GDK_Up
 		del = event.keyval == Gdk::Keyval::GDK_Delete
+		pagedown = event.keyval == Gdk::Keyval::GDK_Page_Down
+		pageup = event.keyval == Gdk::Keyval::GDK_Page_Up
 
-		if up or down
+		if up or down or pageup or pagedown
 			# Up, down and tab moves through the completion list.
 			# If it isn't being displayed, then a new completion list is generated.
 			if not visible?
@@ -381,7 +462,11 @@ class CompletionWindow < Gtk::Window
 					path = selected.path
 					if up
 						path.prev!
-					else
+					elsif down
+						path.next!
+					elsif pageup
+						path.prev!
+					elsif pagedown
 						path.next!
 					end
 				else
@@ -507,7 +592,18 @@ class Window < Gtk::Window
 
 		vbox = Gtk::VBox.new(false, 1)
 
-		vbox.pack_start(Gtk::Label.new('  Run Program:').set_alignment(0, 0), false, false)
+		runProgramLabel = Gtk::Label.new('  Run Program:')
+		runProgramLabel.set_alignment(0, 0)
+		@notFoundLabel = Gtk::Label.new('<span color="red">Command not found</span>  ')
+		@notFoundLabel.set_alignment(1, 0)
+
+		@notFoundLabel.use_markup = true
+
+		hbox = Gtk::HBox.new(false, 1)
+
+		hbox.pack_start(runProgramLabel, true, true)
+		hbox.pack_start(@notFoundLabel, true, true)
+		vbox.pack_start(hbox, false, false)
 
 		@textentry = CompletionEntry.new(self)
 		vbox.pack_start(@textentry, true, true)
@@ -518,6 +614,12 @@ class Window < Gtk::Window
 			if @completion.execInput(@textentry.text)
 				@history.incCount(@textentry.text)
 				Gtk.main_quit
+			else
+				@notFoundLabel.show
+				Thread.new {
+					sleep 1
+					@notFoundLabel.hide
+				}
 			end
 		}
 
@@ -530,6 +632,12 @@ class Window < Gtk::Window
 		}
 
 		@textentry.setDeletionBlock() { |text| @history.delete(text) }
+
+	end
+
+	def show_all
+		super
+		@notFoundLabel.hide
 	end
 end
 
