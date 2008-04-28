@@ -43,6 +43,7 @@ class Configuration
 		@sshHandler = "xterm -e ssh"
 		@fileHandler = "gnome-open"
 		@directoryHandler = "nautilus"
+		@terminalHandler = "Terminal -e"
 
 		return if not File.exists? configfile
 
@@ -55,11 +56,13 @@ class Configuration
 				@fileHandler = $1.strip
 			elsif line =~ /^\s*directory-handler\s*=(.*)/i
 				@directoryHandler = $1.strip
+			elsif line =~ /^\s*terminal-handler\s*=(.*)/i
+				@terminalHandler = $1.strip
 			end
 		}
 	end
 
-	attr_reader :httpHandler, :sshHandler, :fileHandler, :directoryHandler
+	attr_reader :httpHandler, :sshHandler, :fileHandler, :directoryHandler, :terminalHandler
 end
 
 # Keeps a history of recently run commands along with how many times they were run, reading/writing them to a file
@@ -164,7 +167,7 @@ class Completion
 		return c
 	end
 
-	def execInput(input)
+	def execInput(input, inTerminal=false)
 		config = Configuration.new(ConfigFile)
 
 		input = expandHome(input)
@@ -198,6 +201,7 @@ class Completion
 		end
 
 		input = "#{prog} #{input}"
+		input = config.terminalHandler + ' "' + input.gsub(/"/, '\\"') + '"' if inTerminal
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
@@ -626,15 +630,16 @@ class Window < Gtk::Window
 		add(vbox)
 
 		@textentry.signal_connect('activate') {
-			if @completion.execInput(@textentry.text)
-				@history.incCount(@textentry.text)
-				Gtk.main_quit
-			else
-				@notFoundLabel.show
-				Thread.new {
-					sleep 1
-					@notFoundLabel.hide
-				}
+			activate
+		}
+
+		@textentry.signal_connect('key_press_event') { |widget, event|
+			enter = event.keyval == Gdk::Keyval::GDK_Return
+			shift = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
+
+			if enter
+				activate(shift)
+				true
 			end
 		}
 
@@ -647,7 +652,19 @@ class Window < Gtk::Window
 		}
 
 		@textentry.setDeletionBlock() { |text| @history.delete(text) }
+	end
 
+	def activate(inTerminal)
+		if @completion.execInput(@textentry.text, inTerminal)
+			@history.incCount(@textentry.text)
+			Gtk.main_quit
+		else
+			@notFoundLabel.show
+			Thread.new {
+				sleep 1
+				@notFoundLabel.hide
+			}
+		end
 	end
 
 	def show_all
