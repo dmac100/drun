@@ -296,6 +296,21 @@ private
 	def getCompletionDir(input, corrections)
 		# Completes an absolute path
 		input = input.sub(/^file:\/\//, '')
+
+		# If any of the parent directories don't exist, recursively expand these directories first
+		s = input.split(/\//)[0..-1]
+		if not File.directory? s.join('/')
+			2.upto(s.length - 1) { |x|
+				if not File.directory? s[0...x].join('/')
+					return getCompletionDir(s[0...x].join('/'), 0).map { |y|
+						y + s[x..-1].join('/')
+					}.map { |y|
+						getCompletionDir(unescape(y), corrections)
+					}.flatten
+				end
+			}
+		end
+
 		if input =~ /\/$/
 			glob = "#{input}*"
 		else
