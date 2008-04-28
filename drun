@@ -411,6 +411,8 @@ class CompletionWindow < Gtk::Window
 		@treeview.insert_column(-1, "text", Gtk::CellRendererText.new, {:text => 0})
 		@treeview.signal_connect('cursor_changed') { changeCompletion }
 
+		@treeview.signal_connect('row_activated') { @activatedblock.call(false) }
+
 		@scroll = Gtk::ScrolledWindow.new
 		@scroll.add_with_viewport(@treeview)
 		@scroll.set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC)
@@ -440,6 +442,11 @@ class CompletionWindow < Gtk::Window
 		@getpositionblock = getpositionblock
 	end
 
+	# Block to call when a command is activated to run
+	def setActivatedBlock(&activatedblock)
+		@activatedblock = activatedblock
+	end
+
 	# Call to handle a gtk key press event
 	def keyPressEvent(event)
 		down = event.keyval == Gdk::Keyval::GDK_Down
@@ -449,7 +456,13 @@ class CompletionWindow < Gtk::Window
 		pagedown = event.keyval == Gdk::Keyval::GDK_Page_Down
 		pageup = event.keyval == Gdk::Keyval::GDK_Page_Up
 
-		if up or down or pageup or pagedown
+		ret = event.keyval == Gdk::Keyval::GDK_Return
+		control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
+
+		if ret
+			@activatedblock.call(control)
+			true
+		elsif up or down or pageup or pagedown
 			# Up, down and tab moves through the completion list.
 			# If it isn't being displayed, then a new completion list is generated.
 			if not visible?
@@ -567,7 +580,7 @@ class CompletionEntry < Gtk::Entry
 		self.signal_connect('key_press_event') { |widget, event|
 			slash = (event.keyval == Gdk::Keyval::GDK_slash)
 			escape = (event.keyval == Gdk::Keyval::GDK_Escape)
-
+		
 			handledevent = @completionwindow.keyPressEvent(event)
 
 			if ignoreslashes
@@ -591,6 +604,10 @@ class CompletionEntry < Gtk::Entry
 
 	def setDeletionBlock(&block)
 		@completionwindow.setDeletionBlock &block
+	end
+
+	def setActivatedBlock(&block)
+		@completionwindow.setActivatedBlock &block
 	end
 end
 
@@ -629,17 +646,16 @@ class Window < Gtk::Window
 
 		add(vbox)
 
-		@textentry.signal_connect('activate') {
-			activate
-		}
-
-		@textentry.signal_connect('key_press_event') { |widget, event|
-			enter = event.keyval == Gdk::Keyval::GDK_Return
-			shift = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
-
-			if enter
-				activate(shift)
-				true
+		@textentry.setActivatedBlock { |inTerminal|
+			if @completion.execInput(@textentry.text, inTerminal)
+				@history.incCount(@textentry.text)
+				Gtk.main_quit
+			else
+				@notFoundLabel.show
+				Thread.new {
+					sleep 1
+					@notFoundLabel.hide
+				}
 			end
 		}
 
@@ -652,19 +668,6 @@ class Window < Gtk::Window
 		}
 
 		@textentry.setDeletionBlock() { |text| @history.delete(text) }
-	end
-
-	def activate(inTerminal)
-		if @completion.execInput(@textentry.text, inTerminal)
-			@history.incCount(@textentry.text)
-			Gtk.main_quit
-		else
-			@notFoundLabel.show
-			Thread.new {
-				sleep 1
-				@notFoundLabel.hide
-			}
-		end
 	end
 
 	def show_all
