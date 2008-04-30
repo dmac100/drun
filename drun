@@ -227,9 +227,9 @@ private
 	end
 
 	def escape(input)
-		# Add a backslash before every space, backslash or quote
+		# Add a backslash before backslashes, quotes, and shell metacharacters
 
-		input.gsub(/( |\\|'|")/, "\\\\\\1")
+		input.gsub(/([ \\'"|&;()<>])/, "\\\\\\1")
 	end
 
 	def getPrefixSuffix(input)
