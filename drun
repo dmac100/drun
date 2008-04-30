@@ -211,7 +211,7 @@ class Completion
 	end
 private
 	def unescape(input)
-		# Remove the first backslash of a backslash followed by a space or backslash
+		# Remove the first backslash of a backslash followed by an escaped character
 
 		s = ''
 		while input.length > 0
@@ -227,9 +227,9 @@ private
 	end
 
 	def escape(input)
-		# Add a backslash before every space or backslash
+		# Add a backslash before every space, backslash or quote
 
-		input.gsub(/( |\\)/, "\\\\\\1")
+		input.gsub(/( |\\|'|")/, "\\\\\\1")
 	end
 
 	def getPrefixSuffix(input)
