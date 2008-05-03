@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby18
+#!/usr/bin/env ruby
 
 # drun gnome run dialog
 # Copyright (C) 2008 David Maciver
@@ -233,10 +233,10 @@ private
 	end
 
 	def getPrefixSuffix(input)
-		# Return the parts of a string before and after the first unescaped space
+		# Return the parts of a string before and after the last unescaped space
 
-		if input =~ /^(([^ \\]|(\\ )|(\\\\))*)( .*)/
-			return $1, $5[1..-1]
+		if unescape(input) =~ /^(.*) (.*)/
+			return $1, $2
 		else
 			return input, nil
 		end
