@@ -183,7 +183,7 @@ class Completion
 		end
 
 		if not prog
-			prefix, _ = getPrefixSuffix(input)
+			prefix, _ = getPrefixSuffix(input, false)
 
 			prefix = unescape(prefix.strip)
 
@@ -232,10 +232,16 @@ private
 		input.gsub(/([ \\'"|&;()<>])/, "\\\\\\1")
 	end
 
-	def getPrefixSuffix(input)
-		# Return the parts of a string before and after the last unescaped space
+	def getPrefixSuffix(input, greedyPrefix)
+		# Return the parts of a string before and after the first or last unescaped space
 
-		if unescape(input) =~ /^(.*) (.*)/
+		# TODO: Handle escaped backslashes
+
+		if greedyPrefix and input =~ /^(.*[^ \\]) ([^ \\].*)/
+			# Prefix is up to last space
+			return $1, $2
+		elsif not greedyPrefix and input =~ /^([^ \\]+) ([^ \\].*)/
+			# Prefix is up to first space
 			return $1, $2
 		else
 			return input, nil
@@ -255,7 +261,7 @@ private
 	def getCompletionCorrections(input, corrections)
 		# Complete the text after the last space
 
-		prefix, suffix = getPrefixSuffix(input)
+		prefix, suffix = getPrefixSuffix(input, true)
 
 		if suffix
 			c = getCompletionHist(unescape(input), corrections)
