@@ -472,6 +472,7 @@ class CompletionWindow < Gtk::Window
 		control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
 
 		if ret
+			dismissCompletion
 			@activatedblock.call(control)
 			true
 		elsif up or down or pageup or pagedown
@@ -696,7 +697,7 @@ if useFifo
 		fifo.read(1)
 		window.show_all
 		Gtk.main
-		window.hide
+		window.hide_all
 		Gtk.main_iteration while Gtk.events_pending?
 	}
 else
