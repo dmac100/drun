@@ -24,13 +24,19 @@ HOME = ENV['HOME']
 HistFile = "#{HOME}/.drun-history"
 ConfigFile = "#{HOME}/.drunrc"
 
+useFifo = false
+
 # If a directory is passed, then that is what the CWD is set to.
 # If filenames are passed, then the CWD is the location of the first file and the files are added as arguments
 $execpath = nil
 $execargs = nil
 if ARGV.length > 0
-	if ARGV.length == 1 and File.directory? ARGV[0]
-		$execpath = ARGV[0]
+	if ARGV.length == 1
+		if ARGV[0] == '--fifo'
+			useFifo = true
+		elsif File.directory? ARGV[0]
+			$execpath = ARGV[0]
+		end
 	else
 		$execargs = ARGV.map{ |x| "\"#{x}\"" }.join(' ')
 		$execpath = ARGV[0][0..ARGV[0].rindex('/')] if ARGV[0][0..0] == '/'
@@ -682,5 +688,19 @@ class Window < Gtk::Window
 	end
 end
 
-win = Window.new.show_all
-Gtk.main
+if useFifo
+	# Show run dialog when a fifo is written to and hide when fished
+	fifo = open('fifo', 'r+')
+	loop {
+		window = Window.new
+		fifo.read(1)
+		window.show_all
+		Gtk.main
+		window.hide
+		Gtk.main_iteration while Gtk.events_pending?
+	}
+else
+	# Show run dialog once
+	Window.new.show_all
+	Gtk.main
+end
