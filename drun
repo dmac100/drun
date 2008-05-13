@@ -634,6 +634,9 @@ class Window < Gtk::Window
 
 		@completedtext = nil
 
+		set_type_hint(Gdk::Window::TYPE_HINT_DIALOG)
+		set_window_position(Gtk::Window::POS_CENTER_ALWAYS)
+
 		set_border_width(4)
 		signal_connect('destroy') { Gtk.main_quit }
 		set_default_size(500, 50)
