@@ -31,12 +31,11 @@ useFifo = false
 $execpath = nil
 $execargs = nil
 if ARGV.length > 0
-	if ARGV.length == 1
-		if ARGV[0] == '--fifo'
-			useFifo = true
-		elsif File.directory? ARGV[0]
-			$execpath = ARGV[0]
-		end
+	if ARGV.length == 1 and ARGV[0] == '--fifo'
+		useFifo = true
+		$execpath = HOME
+	elsif File.directory? ARGV[0]
+		$execpath = ARGV[0]
 	else
 		$execargs = ARGV.map{ |x| "\"#{x}\"" }.join(' ')
 		$execpath = ARGV[0][0..ARGV[0].rindex('/')] if ARGV[0][0..0] == '/'
