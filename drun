@@ -425,7 +425,7 @@ class CompletionWindow < Gtk::Window
 		@treeview.signal_connect('row_activated') { @activatedblock.call(false) }
 
 		@scroll = Gtk::ScrolledWindow.new
-		@scroll.add_with_viewport(@treeview)
+		@scroll.add(@treeview)
 		@scroll.set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC)
 		set_transient_for(parent)
 		set_default_size(350, 200)
@@ -504,13 +504,10 @@ class CompletionWindow < Gtk::Window
 				if selected
 					# Move selection up or down
 					path = selected.path
-					if up
+					if up or pageup
 						path.prev!
-					elsif down
-						path.next!
-					elsif pageup
-						path.prev!
-					elsif pagedown
+					elsif down or pagedown
+						return if not selected.next!
 						path.next!
 					end
 				else
@@ -522,11 +519,7 @@ class CompletionWindow < Gtk::Window
 				changeCompletion
 
 				# Scroll window to keep selection in the middle
-				adj = @scroll.vadjustment
-				val = @treeview.get_cell_area(path, nil).y
-				if val < adj.upper - 100 and val > 0
-					@scroll.vadjustment.value = val - 90
-				end
+				@treeview.scroll_to_cell(path, nil, true, 0.5, 0.5)
 			end
 			true
 		elsif del and visible? and @deletionblock
