@@ -210,7 +210,7 @@ class Completion
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
-		Process.fork { exec input }
+		Thread.new { system(input) }
 
 		return true
 	end
