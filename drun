@@ -430,7 +430,10 @@ class CompletionWindow < Gtk::Window
 		set_transient_for(parent)
 		set_default_size(350, 200)
 		set_accept_focus(false)
-		add(@scroll)
+
+		frame = Gtk::Frame.new
+		frame.add(@scroll)
+		add(frame)
 	end
 
 	# Block to call to get a list of completions
@@ -577,8 +580,8 @@ class CompletionEntry < Gtk::Entry
 		@completionwindow.setGetPositionBlock() {
 			# Display window underneath the text entry
 			rect = self.window.frame_extents
-			x = rect.x + 7
-			y = rect.y + rect.height - 5
+			x = rect.x + 6
+			y = rect.y + rect.height - 8
 			[x,y]
 		}
 
