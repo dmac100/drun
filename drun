@@ -472,6 +472,9 @@ class CompletionWindow < Gtk::Window
 
 		ret = event.keyval == Gdk::Keyval::GDK_Return
 		control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
+		shift = ((event.state & Gdk::Window::SHIFT_MASK) == Gdk::Window::SHIFT_MASK)
+
+		up ||= (shift and event.keyval == Gdk::Keyval::GDK_ISO_Left_Tab)
 
 		if ret
 			dismissCompletion
@@ -540,6 +543,7 @@ class CompletionWindow < Gtk::Window
 				@deletionblock.call(text)
 			end
 			true
+		elsif (event.keyval == Gdk::Keyval::GDK_Shift_L) or (event.keyval == Gdk::Keyval::GDK_Shift_R)
 		elsif visible?
 			# Any unhandled keypress dismisses the completion
 			dismissCompletion
