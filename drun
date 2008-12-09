@@ -619,14 +619,9 @@ class CompletionEntry < Gtk::Entry
 
 		@completionwindow.setGetPositionBlock() {
 			# Display window underneath the text entry
-			rect = self.window.frame_extents
-			x = rect.x
-			y = rect.y + rect.height
-			if not Windows
-				x += 6
-				y -= 8
-			end
-			[x,y]
+			(_, _, _, height, _) = self.window.geometry
+			(x, y) = self.window.origin
+			[x + 1, y + height - 1]
 		}
 
 		self.signal_connect('key_press_event') { |widget, event|
