@@ -19,8 +19,16 @@
 
 require 'gtk2'
 
-PATH = ENV['PATH'].split(':')
-HOME = ENV['HOME']
+Windows = (ENV['OS'] =~ /Windows/)
+
+if Windows
+	PATH = ENV['PATH'].split(/;/).map { |x| x.gsub('\\', '/') }
+	HOME = ENV['USERPROFILE'].gsub('\\', '/')
+else
+	PATH = ENV['PATH'].split(/:/)
+	HOME = ENV['HOME']
+end
+
 HistFile = "#{HOME}/.drun-history"
 ConfigFile = "#{HOME}/.drunrc"
 
@@ -175,6 +183,8 @@ class Completion
 	def execInput(input, inTerminal=false)
 		config = Configuration.new(ConfigFile)
 
+		input.gsub!(/\//, '\\\\') if Windows
+
 		input = expandHome(input)
 
 		# Find program corresponding to a url
@@ -197,9 +207,9 @@ class Completion
 			if not which(prefix)
 				if File.directory? prefix
 					prog = config.directoryHandler
-				elsif not File.executable? prefix and File.file? prefix
+				elsif not executable? prefix and File.file? prefix
 					prog = config.fileHandler
-				elsif not File.executable? prefix
+				elsif not executable? prefix
 					return
 				end
 			end
@@ -256,9 +266,14 @@ private
 	def which(file)
 		# Return the full path to an executable file by searching the path variable
 
+		suffixes = ['']
+		suffixes = ['', '.exe', '.bat', '.lnk'] if Windows
+
 		PATH.each { |dir|
-			f = "#{dir}/#{file}"
-			return f if File.executable? f and not File.directory? f
+			suffixes.each { |suf|
+				f = "#{dir}/#{file}#{suf}"
+				return f if executable? f and not File.directory? f
+			}
 		}
 		return nil
 	end
@@ -278,15 +293,22 @@ private
 	end
 
 	def expandHome(input)
-		match = input.match(/^~[^\/]*/)
+		match = input.match(/^~\//)
 		if match
-			begin
-				input = input.sub(match[0], File.expand_path(match[0]))
-			rescue
+			return input.sub(match[0], HOME + '/')
+		end
+
+		if not Windows
+			match = input.match(/^~[^\/]*/)
+			if match
+				begin
+					return input.sub(match[0], File.expand_path(match[0]))
+				rescue
+				end
 			end
 		end
 
-		input
+		return input
 	end
 
 	def getCompletionPartial(input, corrections)
@@ -296,7 +318,7 @@ private
 
 		input = expandHome(input)
 
-		if input[0].chr == '/' or input =~ /^file:\/\//
+		if input[0].chr == '/' or input =~ /^file:\/\// or (Windows and input.length > 1 and input[1].chr == ':')
 			# Complete absolute path
 			ret += getCompletionDir(input, corrections)
 		else
@@ -330,14 +352,15 @@ private
 			glob = "#{input}*"
 		else
 			dirname = File.dirname(input)
-			dirname = '' if dirname == '/'
 			# Find hidden files if the input filename starts with a dot
 			if File.basename(input) =~ /^\./
 				glob = "#{dirname}/.*"
 			else
 				glob = "#{dirname}/*"
 			end
+			glob.gsub!(/\/\//, '/')
 		end
+
 		beginsWith(Dir.glob(glob), input, corrections).map { |x|
 			x = File.directory?(x) ? "#{x}/" : x
 			x = escape(x)
@@ -364,6 +387,11 @@ private
 		PATH.each { |dir|
 			beginsWith(filesInDir(dir), input, corrections).each { |file| ret << [dir, file] }
 		}
+
+		if Windows
+			ret.reject! { |x| not executable? x[1] }
+			ret.map! { |dir, file| [dir, file.gsub(/\.(exe|lnk|bat)$/i, '')] }
+		end
 		
 		ret.sort_by { |x| x[1] }.map { |x| fullpath ? (x[0] + '/' + x[1]) : x[1] }
 	end
@@ -381,6 +409,14 @@ private
 			return list.select { |x| x =~ /^#{prefix}/ }
 		else
 			return list.select { |x| x.split(//)[0] == prefix.split(//)[0] and editDistance(prefix, x[0...prefix.length]) <= corrections }
+		end
+	end
+
+	def executable?(file)
+		if Windows
+			file =~ /\.(exe|lnk|bat)$/i
+		else
+			File.executable? file
 		end
 	end
 
@@ -584,8 +620,12 @@ class CompletionEntry < Gtk::Entry
 		@completionwindow.setGetPositionBlock() {
 			# Display window underneath the text entry
 			rect = self.window.frame_extents
-			x = rect.x + 6
-			y = rect.y + rect.height - 8
+			x = rect.x
+			y = rect.y + rect.height
+			if not Windows
+				x += 6
+				y -= 8
+			end
 			[x,y]
 		}
 
