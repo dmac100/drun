@@ -219,7 +219,7 @@ private
 		# Remove the first backslash of a backslash followed by an escaped character
 
 		s = ''
-		while input.length > 0
+		while input and input.length > 0
 			if input =~ /^\\/
 				s += input[1..1]
 				input = input[2..-1]
