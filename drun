@@ -225,41 +225,70 @@ class Completion
 		return true
 	end
 private
-	def unescape(input)
-		# Remove the first backslash of a backslash followed by an escaped character
-
-		s = ''
-		while input and input.length > 0
-			if input =~ /^\\/
-				s += input[1..1]
-				input = input[2..-1]
-			else
-				s += input[0..0]
-				input = input[1..-1]
-			end
+	def escape(input)
+		if Windows and input =~ / /
+			return '"' + input + '"'
 		end
-		s
+
+		# Add a backslash before backslashes, quotes, and shell metacharacters
+		input.gsub(/([ \\'"|&;()<>])/, "\\\\\\1")
 	end
 
-	def escape(input)
-		# Add a backslash before backslashes, quotes, and shell metacharacters
+	def unescape(input)
+		# Remove double quotes and unescaped backslashes outside of quotes
 
-		input.gsub(/([ \\'"|&;()<>])/, "\\\\\\1")
+		s = ''
+
+		quoted = false
+		remaining = input
+		while remaining and remaining.length > 0
+			if not quoted and remaining =~ /^\\/
+				# Backslashes followed by a letter are considered literal
+				s += '/' if remaining =~ /^\\[a-zA-Z]/
+
+				s += remaining[1..1]
+				remaining = remaining[2..-1]
+			else
+				quoted = !quoted if remaining =~ /^"/
+				s += remaining[0..0] if not remaining =~ /^"/
+				remaining = remaining[1..-1]
+			end
+		end
+
+		return s
 	end
 
 	def getPrefixSuffix(input, greedyPrefix)
 		# Return the parts of a string before and after the first or last unescaped space
 
-		# TODO: Handle escaped backslashes
+		prefix = nil
+		suffix = nil
 
-		if greedyPrefix and input =~ /^(.*[^ \\]) ([^ \\].*)/
-			# Prefix is up to last space
-			return $1, $2
-		elsif not greedyPrefix and input =~ /^([^ \\]+) ([^ \\].*)/
-			# Prefix is up to first space
-			return $1, $2
+		quoted = false
+		remaining = input
+		while remaining and remaining.length > 0
+			if not quoted and remaining =~ /^\\/
+				remaining = remaining[2..-1]
+			else
+				quoted = !quoted if remaining =~ /^"/
+				if not quoted
+					if remaining =~ /^ /
+						prefix = input[0..(input.length-remaining.length-1)]
+						suffix = remaining[1..-1]
+
+						if not greedyPrefix
+							return [prefix, suffix]
+						end
+					end
+				end
+				remaining = remaining[1..-1]
+			end
+		end
+
+		if prefix
+			return [prefix, suffix]
 		else
-			return input, nil
+			return [input, nil]
 		end
 	end
 
@@ -333,6 +362,8 @@ private
 	def getCompletionDir(input, corrections)
 		# Completes an absolute path
 		input = input.sub(/^file:\/\//, '')
+
+		input = input.gsub(/\\/, '/') if Windows
 
 		# If any of the parent directories don't exist, recursively expand these directories first
 		s = input.split(/\//)[0..-1]
@@ -627,11 +658,12 @@ class CompletionEntry < Gtk::Entry
 		self.signal_connect('key_press_event') { |widget, event|
 			slash = (event.keyval == Gdk::Keyval::GDK_slash)
 			escape = (event.keyval == Gdk::Keyval::GDK_Escape)
+			slash ||= (event.keyval == Gdk::Keyval::GDK_backslash)
 		
 			handledevent = @completionwindow.keyPressEvent(event)
 
 			if ignoreslashes
-				if slash and self.text == @completedtext and @completedtext[-1].chr == '/'
+				if slash and self.text == @completedtext and @completedtext =~ /\/"?$/
 					@completedtext = nil
 					handledevent = true
 				end
