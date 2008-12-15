@@ -22,6 +22,8 @@ require 'gtk2'
 Windows = (ENV['OS'] =~ /Windows/)
 
 if Windows
+	require 'win32ole'
+
 	PATH = ENV['PATH'].split(/;/).map { |x| x.gsub('\\', '/') }
 	HOME = ENV['USERPROFILE'].gsub('\\', '/')
 else
@@ -52,11 +54,19 @@ end
 
 class Configuration
 	def initialize(configfile)
-		@httpHandler = "firefox"
-		@sshHandler = "xterm -e ssh"
-		@fileHandler = "gnome-open"
-		@directoryHandler = "nautilus"
-		@terminalHandler = "Terminal -e"
+		if Windows
+			@httpHandler = "firefox"
+			#@sshHandler = "xterm -e ssh"
+			@fileHandler = "start"
+			@directoryHandler = "explorer"
+			#@terminalHandler = "Terminal -e"
+		else
+			@httpHandler = "firefox"
+			@sshHandler = "xterm -e ssh"
+			@fileHandler = "gnome-open"
+			@directoryHandler = "nautilus"
+			@terminalHandler = "Terminal -e"
+		end
 
 		return if not File.exists? configfile
 
@@ -198,19 +208,43 @@ class Completion
 		end
 
 		if not prog
-			prefix, _ = getPrefixSuffix(input, false)
+			prefix, suffix = getPrefixSuffix(input, false)
 
 			prefix = unescape(prefix.strip)
 
 			return if prefix == ''
 
-			if not which(prefix)
-				if File.directory? prefix
-					prog = config.directoryHandler
-				elsif not executable? prefix and File.file? prefix
-					prog = config.fileHandler
-				elsif not executable? prefix
-					return
+			if Windows and prefix =~ /.lnk$/i
+				# Replace lnk path with target (windows shortcut)
+				file = prefix.gsub('/', '\\')
+				shell = WIN32OLE.new('WScript.Shell')
+				link = shell.CreateShortcut(file)
+
+				prog = link.TargetPath
+				input = suffix
+			else
+				if not which(prefix)
+					if File.directory? prefix
+						prog = config.directoryHandler
+					elsif not executable? prefix and File.file? prefix
+						prog = config.fileHandler
+
+						if Windows and config.fileHandler.downcase == 'start'
+							# Don't know what escaping start should accept but it seems to work for the following
+
+							# Convert: "c:/documents and settings/david/desktop/test file.txt"
+							# To: c:/"documents and settings"/"david"/"desktop"/"test file.txt"
+
+							prefix.gsub!(/"/, '')
+							prefix.gsub!('/', '\\')
+							prefix.gsub!('\\', '"\\"')
+							prefix = prefix + '"'
+							prefix.gsub!(':"\\', ':\\')
+							input = "#{prefix} #{suffix}"
+						end
+					elsif not executable? prefix
+						return
+					end
 				end
 			end
 		end
@@ -301,7 +335,7 @@ private
 		PATH.each { |dir|
 			suffixes.each { |suf|
 				f = "#{dir}/#{file}#{suf}"
-				return f if executable? f and not File.directory? f
+				return f if File.exists? f and executable? f and not File.directory? f
 			}
 		}
 		return nil
