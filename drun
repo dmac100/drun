@@ -23,6 +23,7 @@ Windows = (ENV['OS'] =~ /Windows/)
 
 if Windows
 	require 'win32ole'
+	require 'Win32API'
 
 	PATH = ENV['PATH'].split(/;/).map { |x| x.gsub('\\', '/') }
 	HOME = ENV['USERPROFILE'].gsub('\\', '/')
@@ -35,6 +36,7 @@ HistFile = "#{HOME}/.drun-history"
 ConfigFile = "#{HOME}/.drunrc"
 
 useFifo = false
+useShortcut = false
 
 # If a directory is passed, then that is what the CWD is set to.
 # If filenames are passed, then the CWD is the location of the first file and the files are added as arguments
@@ -44,6 +46,8 @@ if ARGV.length > 0
 	if ARGV.length == 1 and ARGV[0] == '--fifo'
 		useFifo = true
 		$execpath = HOME
+	elsif ARGV.length == 1 and ARGV[0] == '--shortcut'
+		useShortcut = true
 	elsif File.directory? ARGV[0]
 		$execpath = ARGV[0]
 	else
@@ -214,6 +218,8 @@ class Completion
 
 			return if prefix == ''
 
+			prefix = which(prefix) if which(prefix)
+
 			if Windows and prefix =~ /.lnk$/i
 				# Replace lnk path with target (windows shortcut)
 				file = prefix.gsub('/', '\\')
@@ -276,7 +282,11 @@ private
 		quoted = false
 		remaining = input
 		while remaining and remaining.length > 0
-			if not quoted and remaining =~ /^\\/
+			if remaining == '\\'
+				# Final backslash is considered literal
+				s += remaining
+				remaining = ''
+			elsif not quoted and remaining =~ /^\\/
 				# Backslashes followed by a letter are considered literal
 				s += '/' if remaining =~ /^\\[a-zA-Z]/
 
@@ -330,7 +340,7 @@ private
 		# Return the full path to an executable file by searching the path variable
 
 		suffixes = ['']
-		suffixes = ['', '.exe', '.bat', '.lnk'] if Windows
+		suffixes = ['', '.exe', '.bat', '.lnk', '.exe.lnk', '.bat.lnk'] if Windows
 
 		PATH.each { |dir|
 			suffixes.each { |suf|
@@ -792,16 +802,31 @@ class Window < Gtk::Window
 	end
 end
 
-if useFifo
-	# Show run dialog when a fifo is written to and hide when fished
-	fifo = open('fifo', 'r+')
+def showHideLoop
 	loop {
 		window = Window.new
-		fifo.read(1)
+		loop { break if yield }
 		window.show_all
 		Gtk.main
 		window.hide_all
 		Gtk.main_iteration while Gtk.events_pending?
+	}
+end
+
+if useFifo
+	# Show run dialog when a fifo is written to and hide when fished
+	fifo = open('fifo', 'r+')
+	showHideLoop { fifo.read(1) }
+elsif useShortcut
+	GetAsyncKeyState = Win32API.new("user32","GetAsyncKeyState",['i'],'i')
+	key = 0x52 # r
+	#key = 0x45 # e
+	GetAsyncKeyState.call(key)
+	GetAsyncKeyState.call(0x12) # alt
+	showHideLoop {
+		# alt+r pressed
+		sleep 0.1
+		GetAsyncKeyState.call(key) != 0 and GetAsyncKeyState.call(0x12) != 0
 	}
 else
 	# Show run dialog once
