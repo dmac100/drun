@@ -736,16 +736,13 @@ end
 
 # Main window displaying a completion entry which uses the completion class
 class Window < Gtk::Window
-	def initialize(deletable=true)
-		super()
+	def initialize
+		super
 
 		@history = History.new(HistFile)
 		@completion = Completion.new(@history)
 
 		@completedtext = nil
-
-		self.deletable = deletable
-		self.deletable = false
 
 		set_type_hint(Gdk::Window::TYPE_HINT_DIALOG)
 		set_window_position(Gtk::Window::POS_CENTER_ALWAYS)
@@ -807,7 +804,7 @@ end
 
 def showHideLoop
 	loop {
-		window = Window.new(false)
+		window = Window.new
 		loop { break if yield }
 		window.show_all
 		Gtk.main
