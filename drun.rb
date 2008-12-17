@@ -736,13 +736,16 @@ end
 
 # Main window displaying a completion entry which uses the completion class
 class Window < Gtk::Window
-	def initialize
-		super
+	def initialize(deletable=true)
+		super()
 
 		@history = History.new(HistFile)
 		@completion = Completion.new(@history)
 
 		@completedtext = nil
+
+		self.deletable = deletable
+		self.deletable = false
 
 		set_type_hint(Gdk::Window::TYPE_HINT_DIALOG)
 		set_window_position(Gtk::Window::POS_CENTER_ALWAYS)
@@ -804,13 +807,31 @@ end
 
 def showHideLoop
 	loop {
-		window = Window.new
+		window = Window.new(false)
 		loop { break if yield }
 		window.show_all
 		Gtk.main
-		window.hide_all
+		begin
+			window.hide_all
+		rescue
+		end
 		Gtk.main_iteration while Gtk.events_pending?
 	}
+end
+
+if Windows
+	VK_LWIN = 0x5b
+	VK_RWIN = 0x5c
+	VK_Q = 0x51
+	VK_W = 0x57
+	VK_E = 0x45
+	VK_R = 0x52
+
+	GetAsyncKeyState = Win32API.new("user32","GetAsyncKeyState",['i'],'i')
+end
+
+def pressed(key)
+	GetAsyncKeyState.call(key) != 0
 end
 
 if useFifo
@@ -818,15 +839,14 @@ if useFifo
 	fifo = open('fifo', 'r+')
 	showHideLoop { fifo.read(1) }
 elsif useShortcut
-	GetAsyncKeyState = Win32API.new("user32","GetAsyncKeyState",['i'],'i')
-	key = 0x52 # r
-	#key = 0x45 # e
-	GetAsyncKeyState.call(key)
-	GetAsyncKeyState.call(0x12) # alt
+	pressed(VK_W)
+	pressed(VK_LWIN)
+	pressed(VK_RWIN)
 	showHideLoop {
-		# alt+r pressed
 		sleep 0.1
-		GetAsyncKeyState.call(key) != 0 and GetAsyncKeyState.call(0x12) != 0
+		
+		# win+w pressed
+		(pressed(VK_LWIN) or pressed(VK_RWIN)) and pressed(VK_W)
 	}
 else
 	# Show run dialog once
