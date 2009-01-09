@@ -148,7 +148,7 @@ class History
 		# Update recent entries
 		@recent = [input] + @recent
 		@recent.uniq!
-		@recent = @recent[0...50] if @recent.length > 50
+		@recent = @recent[0...500] if @recent.length > 500
 
 		# Update history file
 		writeFile
@@ -198,7 +198,7 @@ class Completion
 		return nil if input == ''
 
 		input = caseInsensitiveRegex(input)
-		@history.entries.each { |_, x|
+		@history.recent.map { |x|
 			return x if x =~ /#{input}/
 		}
 		return nil
