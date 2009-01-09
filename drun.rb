@@ -194,6 +194,16 @@ class Completion
 		return c
 	end
 
+	def getRecursiveCompletion(input)
+		return nil if input == ''
+
+		input = caseInsensitiveRegex(input)
+		@history.entries.each { |_, x|
+			return x if x =~ /#{input}/
+		}
+		return nil
+	end
+
 	def execInput(input, inTerminal=false)
 		config = Configuration.new(ConfigFile)
 
@@ -478,13 +488,17 @@ private
 
 	def beginsWith(list, prefix, corrections)
 		if corrections == 0
-			# Select items from list that begin with prefix or prefix with some characters converted to uppercase
-			prefix = Regexp.escape(prefix)
-			prefix = prefix.split(//).map { |c| (c == c.downcase and c =~ /[a-zA-Z]/) ? "[#{c + c.upcase}]" : c }.join
-			return list.select { |x| x =~ /^#{prefix}/ }
+			return list.select { |x| x =~ /^#{caseInsensitiveRegex(prefix)}/ }
 		else
 			return list.select { |x| x.split(//)[0] == prefix.split(//)[0] and editDistance(prefix, x[0...prefix.length]) <= corrections }
 		end
+	end
+
+	def caseInsensitiveRegex(input)
+		# Return regex that matches input or input with some characters converted to uppercase
+		input = Regexp.escape(input)
+		input = input.split(//).map { |c| (c == c.downcase and c =~ /[a-zA-Z]/) ? "[#{c + c.upcase}]" : c }.join
+		return input
 	end
 
 	def executable?(file)
@@ -683,6 +697,7 @@ class CompletionEntry < Gtk::Entry
 		super()
 
 		ignoreslashes = true
+		enablerecursivesearch = true
 
 		@completionwindow = CompletionWindow.new(parent)
 
@@ -703,8 +718,56 @@ class CompletionEntry < Gtk::Entry
 			slash = (event.keyval == Gdk::Keyval::GDK_slash)
 			escape = (event.keyval == Gdk::Keyval::GDK_Escape)
 			slash ||= (event.keyval == Gdk::Keyval::GDK_backslash)
-		
-			handledevent = @completionwindow.keyPressEvent(event)
+
+			tab = (event.keyval == Gdk::Keyval::GDK_Tab)
+
+			if enablerecursivesearch
+				control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
+				r = (event.keyval == Gdk::Keyval::GDK_r)
+
+				if tab
+					@recursivesearch = nil
+					@recursivesearchendblock.call
+				end
+
+				if control and r
+					if @recursivesearch
+						@recursivesearch = nil
+						@recursivesearchendblock.call
+					else
+						@recursivesearch = true
+						@recursivesearchtext = self.text
+						@recursivecompletionblock.call(self.text)
+					end
+				elsif @recursivesearch
+					name = Gdk::Keyval.to_name(event.keyval)
+					if name.length == 1 or name == 'BackSpace'
+						if name.length == 1
+							@recursivesearchtext += name
+						else
+							@recursivesearchtext = @recursivesearchtext[0..-2]
+						end
+
+						completion = @recursivecompletionblock.call(@recursivesearchtext)
+						if completion
+							self.text = completion
+							self.position = self.text.length
+						end
+
+						handledevent = true
+					end
+
+					if escape
+						@recursivesearch = nil
+						@recursivesearchendblock.call
+						handledevent = true
+					end
+				end
+			end
+
+			if not handledevent
+				handledevent = @completionwindow.keyPressEvent(event)
+			end
 
 			if ignoreslashes
 				if slash and self.text == @completedtext and @completedtext =~ /\/"?$/
@@ -719,6 +782,14 @@ class CompletionEntry < Gtk::Entry
 
 			handledevent
 		}
+	end
+
+	def setRecursiveSearchEndBlock(&block)
+		@recursivesearchendblock = block
+	end
+
+	def setRecursiveCompletionBlock(&block)
+		@recursivecompletionblock = block
 	end
 
 	def setCompletionBlock(&block)
@@ -754,8 +825,8 @@ class Window < Gtk::Window
 
 		vbox = Gtk::VBox.new(false, 1)
 
-		runProgramLabel = Gtk::Label.new('  Run Program:')
-		runProgramLabel.set_alignment(0, 0)
+		@runProgramLabel = Gtk::Label.new('  Run Program:')
+		@runProgramLabel.set_alignment(0, 0)
 		@notFoundLabel = Gtk::Label.new('<span color="red">Command not found</span>  ')
 		@notFoundLabel.set_alignment(1, 0)
 
@@ -763,7 +834,7 @@ class Window < Gtk::Window
 
 		hbox = Gtk::HBox.new(false, 1)
 
-		hbox.pack_start(runProgramLabel, true, true)
+		hbox.pack_start(@runProgramLabel, true, true)
 		hbox.pack_start(@notFoundLabel, true, true)
 		vbox.pack_start(hbox, false, false)
 
@@ -791,6 +862,15 @@ class Window < Gtk::Window
 			else
 				@completion.getCompletion(@textentry.text)
 			end
+		}
+
+		@textentry.setRecursiveCompletionBlock() { |text|
+			@runProgramLabel.text = "  Recursive Search: #{text}"
+			@completion.getRecursiveCompletion(text)
+		}
+
+		@textentry.setRecursiveSearchEndBlock() {
+			@runProgramLabel.text = '  Run Program:'
 		}
 
 		@textentry.setDeletionBlock() { |text| @history.delete(text) }
