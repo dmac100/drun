@@ -740,28 +740,24 @@ class CompletionEntry < Gtk::Entry
 						@recursivecompletionblock.call(self.text)
 					end
 				elsif @recursivesearch
-					name = Gdk::Keyval.to_name(event.keyval)
-					if name.length == 1 or name == 'BackSpace'
-						if name.length == 1
-							@recursivesearchtext += name
-						else
-							@recursivesearchtext = @recursivesearchtext[0..-2]
-						end
+					if Gdk::Keyval.to_unicode(event.keyval) > 0
+						@recursivesearchtext += GLib::UniChar.to_utf8(event.keyval)
+					elsif event.keyval == Gdk::Keyval::GDK_BackSpace
+						@recursivesearchtext = @recursivesearchtext[0..-2]
+					elsif escape
+						@recursivesearch = nil
+						@recursivesearchendblock.call
+					end
 
+					if not escape
 						completion = @recursivecompletionblock.call(@recursivesearchtext)
 						if completion
 							self.text = completion
 							self.position = self.text.length
 						end
-
-						handledevent = true
 					end
 
-					if escape
-						@recursivesearch = nil
-						@recursivesearchendblock.call
-						handledevent = true
-					end
+					handledevent = true
 				end
 			end
 
@@ -865,7 +861,7 @@ class Window < Gtk::Window
 		}
 
 		@textentry.setRecursiveCompletionBlock() { |text|
-			@runProgramLabel.text = "  Recursive Search: #{text}"
+			@runProgramLabel.text = "  reverse-i-search: #{text}"
 			@completion.getRecursiveCompletion(text)
 		}
 
