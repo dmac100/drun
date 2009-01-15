@@ -477,13 +477,15 @@ private
 			ret.reject! { |x| not executable? x[1] }
 			ret.map! { |dir, file| [dir, file.gsub(/\.(exe|lnk|bat)$/i, '')] }
 		end
+
+		ret.map! { |dir, file| [dir, escape(file)] }
 		
 		ret.sort_by { |x| x[1] }.map { |x| fullpath ? (x[0] + '/' + x[1]) : x[1] }
 	end
 
 	def filesInDir(dir)
 		# Gets a list of all files in dir
-		Dir.glob("#{dir}/*").map { |x| escape(File.basename(x)) }
+		Dir.glob("#{dir}/*").map { |x| File.basename(x) }
 	end
 
 	def beginsWith(list, prefix, corrections)
@@ -719,13 +721,13 @@ class CompletionEntry < Gtk::Entry
 			escape = (event.keyval == Gdk::Keyval::GDK_Escape)
 			slash ||= (event.keyval == Gdk::Keyval::GDK_backslash)
 
-			tab = (event.keyval == Gdk::Keyval::GDK_Tab)
-
 			if enablerecursivesearch
 				control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
 				r = (event.keyval == Gdk::Keyval::GDK_r)
+				tab = (event.keyval == Gdk::Keyval::GDK_ISO_Left_Tab)
+				ret = (event.keyval == Gdk::Keyval::GDK_Return)
 
-				if tab
+				if tab or ret
 					@recursivesearch = nil
 					@recursivesearchendblock.call
 				end
@@ -881,7 +883,10 @@ end
 def showHideLoop
 	loop {
 		window = Window.new
-		loop { break if yield }
+		loop {
+			Gtk.main_iteration while Gtk.events_pending?
+			break if yield
+		}
 		window.show_all
 		Gtk.main
 		begin
@@ -923,6 +928,6 @@ elsif useShortcut
 	}
 else
 	# Show run dialog once
-	Window.new.show_all
+	w = Window.new.show_all
 	Gtk.main
 end
