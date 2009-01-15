@@ -699,7 +699,7 @@ class CompletionEntry < Gtk::Entry
 		super()
 
 		ignoreslashes = true
-		enablerecursivesearch = true
+		enablereversesearch = true
 
 		@completionwindow = CompletionWindow.new(parent)
 
@@ -721,38 +721,38 @@ class CompletionEntry < Gtk::Entry
 			escape = (event.keyval == Gdk::Keyval::GDK_Escape)
 			slash ||= (event.keyval == Gdk::Keyval::GDK_backslash)
 
-			if enablerecursivesearch
+			if enablereversesearch
 				control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
 				r = (event.keyval == Gdk::Keyval::GDK_r)
 				tab = (event.keyval == Gdk::Keyval::GDK_ISO_Left_Tab)
 				ret = (event.keyval == Gdk::Keyval::GDK_Return)
 
 				if tab or ret
-					@recursivesearch = nil
-					@recursivesearchendblock.call
+					@reversesearch = nil
+					@reversesearchendblock.call
 				end
 
 				if control and r
-					if @recursivesearch
-						@recursivesearch = nil
-						@recursivesearchendblock.call
+					if @reversesearch
+						@reversesearch = nil
+						@reversesearchendblock.call
 					else
-						@recursivesearch = true
-						@recursivesearchtext = self.text
+						@reversesearch = true
+						@reversesearchtext = self.text
 						@recursivecompletionblock.call(self.text)
 					end
-				elsif @recursivesearch
+				elsif @reversesearch
 					if Gdk::Keyval.to_unicode(event.keyval) > 0
-						@recursivesearchtext += GLib::UniChar.to_utf8(event.keyval)
+						@reversesearchtext += GLib::UniChar.to_utf8(event.keyval)
 					elsif event.keyval == Gdk::Keyval::GDK_BackSpace
-						@recursivesearchtext = @recursivesearchtext[0..-2]
+						@reversesearchtext = @reversesearchtext[0..-2]
 					elsif escape
-						@recursivesearch = nil
-						@recursivesearchendblock.call
+						@reversesearch = nil
+						@reversesearchendblock.call
 					end
 
 					if not escape
-						completion = @recursivecompletionblock.call(@recursivesearchtext)
+						completion = @recursivecompletionblock.call(@reversesearchtext)
 						if completion
 							self.text = completion
 							self.position = self.text.length
@@ -782,8 +782,8 @@ class CompletionEntry < Gtk::Entry
 		}
 	end
 
-	def setRecursiveSearchEndBlock(&block)
-		@recursivesearchendblock = block
+	def setReverseSearchEndBlock(&block)
+		@reversesearchendblock = block
 	end
 
 	def setRecursiveCompletionBlock(&block)
@@ -867,7 +867,7 @@ class Window < Gtk::Window
 			@completion.getRecursiveCompletion(text)
 		}
 
-		@textentry.setRecursiveSearchEndBlock() {
+		@textentry.setReverseSearchEndBlock() {
 			@runProgramLabel.text = '  Run Program:'
 		}
 
