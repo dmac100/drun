@@ -238,29 +238,29 @@ class Completion
 
 				prog = link.TargetPath
 				input = suffix
-			else
-				if not which(prefix)
-					if File.directory? prefix
-						prog = config.directoryHandler
-					elsif not executable? prefix and File.file? prefix
-						prog = config.fileHandler
+			end
 
-						if Windows and config.fileHandler.downcase == 'start'
-							# Don't know what escaping start should accept but it seems to work for the following
+			if not which(prefix)
+				if File.directory? prefix
+					prog = config.directoryHandler
+				elsif not executable? prefix and File.file? prefix
+					prog = config.fileHandler
 
-							# Convert: "c:/documents and settings/david/desktop/test file.txt"
-							# To: c:/"documents and settings"/"david"/"desktop"/"test file.txt"
+					if Windows and config.fileHandler.downcase == 'start'
+						# Don't know what escaping start should accept but it seems to work for the following
 
-							prefix.gsub!(/"/, '')
-							prefix.gsub!('/', '\\')
-							prefix.gsub!('\\', '"\\"')
-							prefix = prefix + '"'
-							prefix.gsub!(':"\\', ':\\')
-							input = "#{prefix} #{suffix}"
-						end
-					elsif not executable? prefix
-						return
+						# Convert: "c:/documents and settings/david/desktop/test file.txt"
+						# To: c:/"documents and settings"/"david"/"desktop"/"test file.txt"
+
+						prefix.gsub!(/"/, '')
+						prefix.gsub!('/', '\\')
+						prefix.gsub!('\\', '"\\"')
+						prefix = prefix + '"'
+						prefix.gsub!(':"\\', ':\\')
+						input = "#{prefix} #{suffix}"
 					end
+				elsif not executable? prefix
+					return
 				end
 			end
 		end
