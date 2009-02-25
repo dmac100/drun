@@ -197,7 +197,7 @@ class Completion
 	def getRecursiveCompletion(input)
 		return nil if input == ''
 
-		input = caseInsensitiveRegex(input)
+		input = createRegex(input)
 		@history.recent.map { |x|
 			return x if x =~ /#{input}/
 		}
@@ -490,15 +490,17 @@ private
 
 	def beginsWith(list, prefix, corrections)
 		if corrections == 0
-			return list.select { |x| x =~ /^#{caseInsensitiveRegex(prefix)}/ }
+			return list.select { |x| x =~ /^#{createRegex(prefix)}/ }
 		else
 			return list.select { |x| x.split(//)[0] == prefix.split(//)[0] and editDistance(prefix, x[0...prefix.length]) <= corrections }
 		end
 	end
 
-	def caseInsensitiveRegex(input)
+	def createRegex(input)
 		# Return regex that matches input or input with some characters converted to uppercase
 		input = Regexp.escape(input)
+		# Keep '*' glob from input
+		input = input.gsub(/\\\*/, '.*')
 		input = input.split(//).map { |c| (c == c.downcase and c =~ /[a-zA-Z]/) ? "[#{c + c.upcase}]" : c }.join
 		return input
 	end
