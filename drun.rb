@@ -433,6 +433,10 @@ private
 			}
 		end
 
+		if input =~ /(.*)\/$/ and not File.directory? input
+			input = $1
+		end
+
 		if input =~ /\/$/
 			glob = "#{input}*"
 		else
