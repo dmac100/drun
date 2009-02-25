@@ -425,8 +425,7 @@ private
 			2.upto(s.length - 1) { |x|
 				if not File.directory? s[0...x].join('/')
 					return getCompletionDir(s[0...x].join('/'), 0).map { |y|
-						y + s[x..-1].join('/')
-					}.map { |y|
+						y += s[x..-1].join('/')
 						getCompletionDir(unescape(y), corrections)
 					}.flatten
 				end
