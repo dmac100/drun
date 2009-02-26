@@ -236,8 +236,9 @@ class Completion
 				shell = WIN32OLE.new('WScript.Shell')
 				link = shell.CreateShortcut(file)
 
-				prog = link.TargetPath
-				input = suffix
+				prefix = link.TargetPath
+				input = escape(prefix)
+				input += ' ' + suffix if suffix
 			end
 
 			if not which(prefix)
