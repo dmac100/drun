@@ -275,6 +275,33 @@ class Completion
 
 		return true
 	end
+
+	def getParentDirectory(input)
+		prefix, suffix = getPrefixSuffix(input, true)
+
+		if not suffix
+			suffix = prefix
+			prefix = ''
+		end
+
+		return input if not suffix
+
+		suffix = unescape(suffix)
+
+		if suffix =~ /(.*)\/$/
+			suffix = $1
+		end
+
+		if suffix.count('/') == 1 and suffix =~ /^\/.+/
+			suffix = '/'
+		else
+			suffix =~ /^(.*)\//
+			suffix = $1
+		end
+
+		return prefix if not suffix
+		return (prefix + ' ' + escape(suffix)).strip
+	end
 private
 	def escape(input)
 		if Windows and input =~ / /
@@ -770,6 +797,10 @@ class CompletionEntry < Gtk::Entry
 			end
 
 			if not handledevent
+				handledevent = @keyPressBlock.call(event) if @keyPressBlock
+			end
+
+			if not handledevent
 				handledevent = @completionwindow.keyPressEvent(event)
 			end
 
@@ -806,6 +837,10 @@ class CompletionEntry < Gtk::Entry
 
 	def setActivatedBlock(&block)
 		@completionwindow.setActivatedBlock &block
+	end
+
+	def setKeyPressBlock(&block)
+		@keyPressBlock = block
 	end
 end
 
@@ -878,6 +913,20 @@ class Window < Gtk::Window
 		}
 
 		@textentry.setDeletionBlock() { |text| @history.delete(text) }
+
+		@textentry.setKeyPressBlock() { |event|
+			up = event.keyval == Gdk::Keyval::GDK_Up
+			alt = ((event.state & Gdk::Window::MOD1_MASK) == Gdk::Window::MOD1_MASK)
+
+			if up and alt
+				@textentry.text = @completion.getParentDirectory(@textentry.text)
+				@textentry.position = @textentry.text.length
+				true
+			else
+				false
+			end
+		}
+
 	end
 
 	def show_all
