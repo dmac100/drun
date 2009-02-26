@@ -916,15 +916,37 @@ class Window < Gtk::Window
 
 		@textentry.setKeyPressBlock() { |event|
 			up = event.keyval == Gdk::Keyval::GDK_Up
+			down = event.keyval == Gdk::Keyval::GDK_Down
 			alt = ((event.state & Gdk::Window::MOD1_MASK) == Gdk::Window::MOD1_MASK)
 
+			handled = false
+
+			@dirstack = [] if not @dirstack
+
 			if up and alt
+				old = @textentry.text
 				@textentry.text = @completion.getParentDirectory(@textentry.text)
 				@textentry.position = @textentry.text.length
-				true
-			else
-				false
+				if @textentry.text != old
+					@dirstack << [old, @textentry.text]
+					@dirstack.reject! { |x| x[1].length < @textentry.text.length }
+				end
+				handled = true
+			elsif down and alt
+				if @dirstack
+					dirs = @dirstack[-1]
+					if dirs
+						if dirs[1] == @textentry.text
+							@dirstack.pop
+							@textentry.text = dirs[0]
+							@textentry.position = @textentry.text.length
+						end
+					end
+				end
+				handled = true
 			end
+
+			handled
 		}
 
 	end
