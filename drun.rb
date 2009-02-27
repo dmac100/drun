@@ -295,7 +295,7 @@ class Completion
 		if suffix.count('/') == 1 and suffix =~ /^\/.+/
 			suffix = '/'
 		else
-			suffix =~ /^(.*)\//
+			suffix =~ /^(.*\/)/
 			suffix = $1
 		end
 
