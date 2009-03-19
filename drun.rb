@@ -430,7 +430,8 @@ private
 		input = expandHome(input)
 
 		if input[0].chr == '/' or input =~ /^file:\/\// or (Windows and input.length > 1 and input[1].chr == ':')
-			# Complete absolute path
+			# Complete from exevutable and absolute path
+			ret += getCompletionHist(input, corrections)
 			ret += getCompletionDir(input, corrections)
 		else
 			# Complete executable from history and path
