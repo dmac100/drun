@@ -190,7 +190,7 @@ class Completion
 		return c
 	end
 
-	def getRecursiveCompletion(input)
+	def getReverseCompletion(input)
 		return nil if input == ''
 
 		input = createRegex(input)
@@ -773,7 +773,7 @@ class CompletionEntry < Gtk::Entry
 					else
 						@reversesearch = true
 						@reversesearchtext = self.text
-						@recursivecompletionblock.call(self.text)
+						@reversecompletionblock.call(self.text)
 						@completionwindow.complete(true)
 					end
 				elsif @reversesearch
@@ -787,7 +787,7 @@ class CompletionEntry < Gtk::Entry
 					end
 
 					if not escape
-						completion = @recursivecompletionblock.call(@reversesearchtext)
+						completion = @reversecompletionblock.call(@reversesearchtext)
 						if completion
 							self.text = completion
 							self.position = self.text.length
@@ -825,8 +825,8 @@ class CompletionEntry < Gtk::Entry
 		@reversesearchendblock = block
 	end
 
-	def setRecursiveCompletionBlock(&block)
-		@recursivecompletionblock = block
+	def setreversecompletionblock(&block)
+		@reversecompletionblock = block
 	end
 
 	def setCompletionBlock(&block)
@@ -905,9 +905,9 @@ class Window < Gtk::Window
 			end
 		}
 
-		@textentry.setRecursiveCompletionBlock() { |text|
+		@textentry.setreversecompletionblock() { |text|
 			@runProgramLabel.text = "  reverse-i-search: #{text}"
-			@completion.getRecursiveCompletion(text)
+			@completion.getReverseCompletion(text)
 		}
 
 		@textentry.setReverseSearchEndBlock() {
