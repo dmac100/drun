@@ -754,7 +754,7 @@ class CompletionEntry < Gtk::Entry
 			if enablereversesearch
 				control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
 				r = (event.keyval == Gdk::Keyval::GDK_r)
-				tab = (event.keyval == Gdk::Keyval::GDK_ISO_Left_Tab)
+				tab = (event.keyval == Gdk::Keyval::GDK_Tab)
 				ret = (event.keyval == Gdk::Keyval::GDK_Return)
 
 				if tab or ret
