@@ -18,6 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 require 'gtk2'
+require 'callback'
 
 Windows = (ENV['OS'] =~ /Windows/)
 
@@ -579,7 +580,7 @@ class CompletionWindow < Gtk::Window
 		@treeview.insert_column(-1, "text", Gtk::CellRendererText.new, {:text => 0})
 		@treeview.signal_connect('cursor_changed') { changeCompletion }
 
-		@treeview.signal_connect('row_activated') { dismissCompletion; @activatedblock.call(false) }
+		@treeview.signal_connect('row_activated') { dismissCompletion; sendActivated(false) }
 
 		@scroll = Gtk::ScrolledWindow.new
 		@scroll.add(@treeview)
@@ -591,31 +592,6 @@ class CompletionWindow < Gtk::Window
 		frame = Gtk::Frame.new
 		frame.add(@scroll)
 		add(frame)
-	end
-
-	# Block to call to get a list of completions
-	def setCompletionBlock(&completionblock)
-		@completionblock = completionblock
-	end
-
-	# Block to call when a completion has been selected
-	def setFinishedCompletionBlock(&finishedcompletionblock)
-		@finishedcompletionblock = finishedcompletionblock
-	end
-
-	# Block to call when a completion entry has been deleted
-	def setDeletionBlock(&deletionblock)
-		@deletionblock = deletionblock
-	end
-
-	# Block to call to get the position to display a completion window
-	def setGetPositionBlock(&getpositionblock)
-		@getpositionblock = getpositionblock
-	end
-
-	# Block to call when a command is activated to run
-	def setActivatedBlock(&activatedblock)
-		@activatedblock = activatedblock
 	end
 
 	# Call to handle a gtk key press event
@@ -635,12 +611,12 @@ class CompletionWindow < Gtk::Window
 
 		if ret
 			dismissCompletion
-			@activatedblock.call(control)
+			sendActivated(control)
 			true
 		elsif up or down or pageup or pagedown
 			complete(down || pagedown)
 			true
-		elsif del and visible? and @deletionblock
+		elsif del and visible?
 			selected = @treeview.selection.selected
 			if selected
 				# Remove the selected completion entry keeping the selection at the same location
@@ -652,7 +628,7 @@ class CompletionWindow < Gtk::Window
 
 				dismissCompletion if not @liststore.iter_first
 
-				@deletionblock.call(text)
+				sendDeletion(text)
 			end
 			true
 		elsif (event.keyval == Gdk::Keyval::GDK_Shift_L) or (event.keyval == Gdk::Keyval::GDK_Shift_R)
@@ -668,14 +644,13 @@ class CompletionWindow < Gtk::Window
 		# Move through the completion list.
 		# If it isn't being displayed, then a new completion list is generated.
 		if not visible?
-			return if not @completionblock
-			comp = @completionblock.call
+			comp = sendCompletion()
 
 			if comp.length == 1
 				# Unique completion updates the text entry without a menu
-				@finishedcompletionblock.call(comp.first)
+				sendFinishedCompletion(comp.first)
 			elsif comp.length > 1
-				x,y = @getpositionblock.call
+				x,y = sendGetPosition()
 				# More than one completion creates a menu
 				move(x, y)
 				show_all
@@ -712,13 +687,15 @@ class CompletionWindow < Gtk::Window
 			@treeview.scroll_to_cell(path, nil, true, 0.5, 0.5)
 		end
 	end
+
+	callback :completion, :finishedCompletion, :deletion, :getPosition, :activated
 private
 	def changeCompletion
 		# Set the text entry to the selected completion
 		path = @treeview.selection.selected.path
 		text = @treeview.model.get_value(@liststore.get_iter(path), 0)
 
-		@finishedcompletionblock.call(text) if @finishedcompletionblock
+		sendFinishedCompletion(text)
 	end
 
 	def dismissCompletion
@@ -737,13 +714,17 @@ class CompletionEntry < Gtk::Entry
 
 		@completionwindow = CompletionWindow.new(parent)
 
-		@completionwindow.setFinishedCompletionBlock() { |completion|
+		@completionwindow.setCompletionCallback() { |*args| sendCompletion(*args) }
+		@completionwindow.setDeletionCallback() { |*args| sendDeletion(*args) }
+		@completionwindow.setActivatedCallback() { |*args| sendActivated(*args) }
+
+		@completionwindow.setFinishedCompletionCallback() { |completion|
 			@completedtext = completion
 			self.text = completion
 			self.position = self.text.length
 		}
 
-		@completionwindow.setGetPositionBlock() {
+		@completionwindow.setGetPositionCallback() {
 			# Display window underneath the text entry
 			(_, _, _, height, _) = self.window.geometry
 			(x, y) = self.window.origin
@@ -763,17 +744,17 @@ class CompletionEntry < Gtk::Entry
 
 				if tab or ret
 					@reversesearch = nil
-					@reversesearchendblock.call
+					sendReverseSearchEnd()
 				end
 
 				if control and r
 					if @reversesearch
 						@reversesearch = nil
-						@reversesearchendblock.call
+						sendReverseSearchEnd()
 					else
 						@reversesearch = true
 						@reversesearchtext = self.text
-						completion = @reversecompletionblock.call(@reversesearchtext)
+						completion = sendReverseCompletion(@reversesearchtext)
 						if completion
 							self.text = completion
 							self.position = self.text.length
@@ -786,11 +767,11 @@ class CompletionEntry < Gtk::Entry
 						@reversesearchtext = @reversesearchtext[0..-2]
 					elsif escape
 						@reversesearch = nil
-						@reversesearchendblock.call
+						sendReverseSearchEnd()
 					end
 
 					if not escape
-						completion = @reversecompletionblock.call(@reversesearchtext)
+						completion = sendReverseCompletion(@reversesearchtext)
 						if completion
 							self.text = completion
 							self.position = self.text.length
@@ -802,7 +783,7 @@ class CompletionEntry < Gtk::Entry
 			end
 
 			if not handledevent
-				handledevent = @keyPressBlock.call(event) if @keyPressBlock
+				handledevent = sendKeyPress(event)
 			end
 
 			if not handledevent
@@ -824,29 +805,7 @@ class CompletionEntry < Gtk::Entry
 		}
 	end
 
-	def setReverseSearchEndBlock(&block)
-		@reversesearchendblock = block
-	end
-
-	def setreversecompletionblock(&block)
-		@reversecompletionblock = block
-	end
-
-	def setCompletionBlock(&block)
-		@completionwindow.setCompletionBlock &block
-	end
-
-	def setDeletionBlock(&block)
-		@completionwindow.setDeletionBlock &block
-	end
-
-	def setActivatedBlock(&block)
-		@completionwindow.setActivatedBlock &block
-	end
-
-	def setKeyPressBlock(&block)
-		@keyPressBlock = block
-	end
+	callback :reverseSearchEnd, :reverseCompletion, :completion, :deletion, :activated, :keyPress
 end
 
 # Main window displaying a completion entry which uses the completion class
@@ -887,7 +846,7 @@ class Window < Gtk::Window
 
 		add(vbox)
 
-		@textentry.setActivatedBlock { |inTerminal|
+		@textentry.setActivatedCallback { |inTerminal|
 			if @completion.execInput(@textentry.text, inTerminal)
 				@history.incCount(@textentry.text)
 				Gtk.main_quit
@@ -900,7 +859,7 @@ class Window < Gtk::Window
 			end
 		}
 
-		@textentry.setCompletionBlock() {
+		@textentry.setCompletionCallback() {
 			if @textentry.text.length == 0
 				@completion.getRecent
 			else
@@ -908,18 +867,18 @@ class Window < Gtk::Window
 			end
 		}
 
-		@textentry.setreversecompletionblock() { |text|
+		@textentry.setReverseCompletionCallback() { |text|
 			@runProgramLabel.text = "  reverse-i-search: #{text}"
 			@completion.getReverseCompletion(text)
 		}
 
-		@textentry.setReverseSearchEndBlock() {
+		@textentry.setReverseSearchEndCallback() {
 			@runProgramLabel.text = '  Run Program:'
 		}
 
-		@textentry.setDeletionBlock() { |text| @history.delete(text) }
+		@textentry.setDeletionCallback() { |text| @history.delete(text) }
 
-		@textentry.setKeyPressBlock() { |event|
+		@textentry.setKeyPressCallback() { |event|
 			up = event.keyval == Gdk::Keyval::GDK_Up
 			down = event.keyval == Gdk::Keyval::GDK_Down
 			alt = ((event.state & Gdk::Window::MOD1_MASK) == Gdk::Window::MOD1_MASK)
