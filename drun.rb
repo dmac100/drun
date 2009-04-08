@@ -773,7 +773,11 @@ class CompletionEntry < Gtk::Entry
 					else
 						@reversesearch = true
 						@reversesearchtext = self.text
-						@completionwindow.complete(true) if self.text.length > 0
+						completion = @reversecompletionblock.call(@reversesearchtext)
+						if completion
+							self.text = completion
+							self.position = self.text.length
+						end
 					end
 				elsif @reversesearch
 					if Gdk::Keyval.to_unicode(event.keyval) > 0
