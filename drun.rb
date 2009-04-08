@@ -638,52 +638,7 @@ class CompletionWindow < Gtk::Window
 			@activatedblock.call(control)
 			true
 		elsif up or down or pageup or pagedown
-			# Up, down and tab moves through the completion list.
-			# If it isn't being displayed, then a new completion list is generated.
-			if not visible?
-				return false if not @completionblock
-				comp = @completionblock.call
-
-				if comp.length == 1
-					# Unique completion updates the text entry without a menu
-					@finishedcompletionblock.call(comp.first)
-				elsif comp.length > 1
-					x,y = @getpositionblock.call
-					# More than one completion creates a menu
-					move(x, y)
-					show_all
-					# Add completion list for menu and select the first item
-					@liststore.clear
-					comp.each { |x|
-						row = @liststore.append
-						row.set_value(0, x)
-					}
-					@treeview.selection.select_path(Gtk::TreePath.new('0'))
-
-					changeCompletion
-				end
-			else
-				selected = @treeview.selection.selected
-				if selected
-					# Move selection up or down
-					path = selected.path
-					if up or pageup
-						path.prev!
-					elsif down or pagedown
-						return if not selected.next!
-						path.next!
-					end
-				else
-					# If there isn't a selection, select the first row
-					path = @liststore.iter_first.path
-				end
-				@treeview.selection.select_path(path)
-
-				changeCompletion
-
-				# Scroll window to keep selection in the middle
-				@treeview.scroll_to_cell(path, nil, true, 0.5, 0.5)
-			end
+			complete(down || pagedown)
 			true
 		elsif del and visible? and @deletionblock
 			selected = @treeview.selection.selected
@@ -706,6 +661,55 @@ class CompletionWindow < Gtk::Window
 			dismissCompletion
 			# Don't pass escape event to parent
 			return (event.keyval == Gdk::Keyval::GDK_Escape)
+		end
+	end
+
+	def complete(forward)
+		# Move through the completion list.
+		# If it isn't being displayed, then a new completion list is generated.
+		if not visible?
+			return if not @completionblock
+			comp = @completionblock.call
+
+			if comp.length == 1
+				# Unique completion updates the text entry without a menu
+				@finishedcompletionblock.call(comp.first)
+			elsif comp.length > 1
+				x,y = @getpositionblock.call
+				# More than one completion creates a menu
+				move(x, y)
+				show_all
+				# Add completion list for menu and select the first item
+				@liststore.clear
+				comp.each { |x|
+					row = @liststore.append
+					row.set_value(0, x)
+				}
+				@treeview.selection.select_path(Gtk::TreePath.new('0'))
+
+				changeCompletion
+			end
+		else
+			selected = @treeview.selection.selected
+			if selected
+				# Move selection up or down
+				path = selected.path
+				if forward
+					return if not selected.next!
+					path.next!
+				else
+					path.prev!
+				end
+			else
+				# If there isn't a selection, select the first row
+				path = @liststore.iter_first.path
+			end
+			@treeview.selection.select_path(path)
+
+			changeCompletion
+
+			# Scroll window to keep selection in the middle
+			@treeview.scroll_to_cell(path, nil, true, 0.5, 0.5)
 		end
 	end
 private
@@ -770,6 +774,7 @@ class CompletionEntry < Gtk::Entry
 						@reversesearch = true
 						@reversesearchtext = self.text
 						@recursivecompletionblock.call(self.text)
+						@completionwindow.complete(true)
 					end
 				elsif @reversesearch
 					if Gdk::Keyval.to_unicode(event.keyval) > 0
