@@ -35,7 +35,6 @@ end
 HistFile = "#{HOME}/.drun-history"
 ConfigFile = "#{HOME}/.drunrc"
 
-useFifo = false
 useShortcut = false
 
 # If a directory is passed, then that is what the CWD is set to.
@@ -43,10 +42,7 @@ useShortcut = false
 $execpath = nil
 $execargs = nil
 if ARGV.length > 0
-	if ARGV.length == 1 and ARGV[0] == '--fifo'
-		useFifo = true
-		$execpath = HOME
-	elsif ARGV.length == 1 and ARGV[0] == '--shortcut'
+	if ARGV.length == 1 and ARGV[0] == '--shortcut'
 		useShortcut = true
 	elsif File.directory? ARGV[0]
 		$execpath = ARGV[0]
@@ -990,11 +986,7 @@ def pressed(key)
 	GetAsyncKeyState.call(key) != 0
 end
 
-if useFifo
-	# Show run dialog when a fifo is written to and hide when fished
-	fifo = open('fifo', 'r+')
-	showHideLoop { fifo.read(1) }
-elsif useShortcut
+if useShortcut
 	pressed(VK_W)
 	pressed(VK_LWIN)
 	pressed(VK_RWIN)
