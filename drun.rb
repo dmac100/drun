@@ -59,7 +59,7 @@ class Configuration
 			#@sshHandler = "xterm -e ssh"
 			@fileHandler = "start"
 			@directoryHandler = "explorer"
-			#@terminalHandler = "Terminal -e"
+			@terminalHandler = "cmd"
 		else
 			@httpHandler = "firefox"
 			@sshHandler = "xterm -e ssh"
@@ -239,7 +239,8 @@ class Completion
 
 			if not which(prefix)
 				if File.directory? prefix
-					prog = config.directoryHandler
+					Dir.chdir prefix
+					prog = inTerminal ? config.terminalHandler.split(' ').first : config.directoryHandler
 				elsif not executable? prefix and File.file? prefix
 					prog = config.fileHandler
 
@@ -635,7 +636,7 @@ class CompletionWindow < Gtk::Window
 
 		if ret
 			dismissCompletion
-			@activatedblock.call(control)
+			@activatedblock.call(control || shift)
 			true
 		elsif up or down or pageup or pagedown
 			complete(down || pagedown)
@@ -780,24 +781,35 @@ class CompletionEntry < Gtk::Entry
 						end
 					end
 				elsif @reversesearch
+					endsearch = false
+
 					if Gdk::Keyval.to_unicode(event.keyval) > 0
 						@reversesearchtext += GLib::UniChar.to_utf8(event.keyval)
 					elsif event.keyval == Gdk::Keyval::GDK_BackSpace
 						@reversesearchtext = @reversesearchtext[0..-2]
-					elsif escape
+					elsif escape or
+						event.keyval == Gdk::Keyval::GDK_Left or
+						event.keyval == Gdk::Keyval::GDK_Right or
+						event.keyval == Gdk::Keyval::GDK_Up or
+						event.keyval == Gdk::Keyval::GDK_Down or
+						event.keyval == Gdk::Keyval::GDK_Home or
+						event.keyval == Gdk::Keyval::GDK_End
+
+						endsearch = true
 						@reversesearch = nil
 						@reversesearchendblock.call
 					end
 
-					if not escape
+					if not endsearch
 						completion = @reversecompletionblock.call(@reversesearchtext)
 						if completion
 							self.text = completion
 							self.position = self.text.length
 						end
+						handledevent = true
 					end
 
-					handledevent = true
+					handledevent = true if escape
 				end
 			end
 
