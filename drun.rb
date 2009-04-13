@@ -241,6 +241,7 @@ class Completion
 				if File.directory? prefix
 					Dir.chdir prefix
 					prog = inTerminal ? config.terminalHandler.split(' ').first : config.directoryHandler
+					input = ''
 				elsif not executable? prefix and File.file? prefix
 					prog = config.fileHandler
 
@@ -264,7 +265,7 @@ class Completion
 		end
 
 		input = "#{prog} #{input}"
-		input = config.terminalHandler + ' "' + input.gsub(/"/, '\\"') + '"' if inTerminal
+		input = config.terminalHandler + ' "' + input.gsub(/"/, '\\"') + '"' if inTerminal and not File.directory? prefix
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
