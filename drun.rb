@@ -269,7 +269,7 @@ class Completion
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
-		Thread.new { system(input) }
+		Thread.new { sleep 0.01; system(input) }
 
 		return true
 	end
@@ -1022,3 +1022,5 @@ else
 	w = Window.new.show_all
 	Gtk.main
 end
+
+sleep 0.1
