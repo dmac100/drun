@@ -203,9 +203,7 @@ class Completion
 	def execInput(input, inTerminal=false)
 		config = Configuration.new(ConfigFile)
 
-		input.gsub!(/\//, '\\\\') if Windows
-
-		input = expandHome(input)
+		input = expandAll(input)
 
 		# Find program corresponding to a url
 		if input =~ /^(\w*):\/\/(.*)/
@@ -241,7 +239,6 @@ class Completion
 				if File.directory? prefix
 					Dir.chdir prefix
 					prog = inTerminal ? config.terminalHandler.split(' ').first : config.directoryHandler
-					input = ''
 				elsif not executable? prefix and File.file? prefix
 					prog = config.fileHandler
 
@@ -265,7 +262,7 @@ class Completion
 		end
 
 		input = "#{prog} #{input}"
-		input = config.terminalHandler + ' "' + input.gsub(/"/, '\\"') + '"' if inTerminal and not File.directory? prefix
+		input = config.terminalHandler + ' "' + input.gsub(/"/, '\\"') + '"' if inTerminal
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
@@ -372,6 +369,16 @@ private
 		end
 	end
 
+	def split(input)
+		parts = []
+		while input
+			(prefix, suffix) = getPrefixSuffix(input, false)
+			parts << unescape(prefix)
+			input = suffix
+		end
+		return parts
+	end
+
 	def which(file)
 		# Return the full path to an executable file by searching the path variable
 
@@ -401,10 +408,36 @@ private
 		end
 	end
 
+	def expandAll(input)
+		input = split(input).map { |x| escape(expand(x, true)) }.join(' ')
+		input = input.gsub(/\//, '\\') if Windows
+		return input
+	end
+
+	def expand(input, singleMatch=false)
+		input = expandHome(input)
+
+		if absoluteFilePath?(input)
+			input = input.sub(/^file:\/\//, '')
+			input = input.gsub(/\\/, '/') if Windows
+		else
+			if singleMatch
+				if input =~ /^=(.*)/
+					input = which($1) if which($1)
+				end
+			end
+		end
+
+		return input
+	end
+
 	def expandHome(input)
 		match = input.match(/^~\//)
-		if match
-			return input.sub(match[0], HOME + '/')
+		return input.sub(match[0], HOME + '/') if match
+
+		if Windows
+			match = input.match(/^~\\/)
+			return input.sub(match[0], HOME + '/') if match
 		end
 
 		if not Windows
@@ -425,10 +458,10 @@ private
 
 		return ret if input.length == 0
 
-		input = expandHome(input)
+		input = expand(input)
 
-		if input[0].chr == '/' or input =~ /^file:\/\// or (Windows and input.length > 1 and input[1].chr == ':')
-			# Complete from exevutable and absolute path
+		if absoluteFilePath?(input)
+			# Complete from executable and absolute path
 			ret += getCompletionHist(input, corrections)
 			ret += getCompletionDir(input, corrections)
 		else
@@ -442,10 +475,6 @@ private
 
 	def getCompletionDir(input, corrections)
 		# Completes an absolute path
-		input = input.sub(/^file:\/\//, '')
-
-		input = input.gsub(/\\/, '/') if Windows
-
 		# If any of the parent directories don't exist, recursively expand these directories first
 		s = input.split(/\//)[0..-1]
 		if not File.directory? s.join('/')
@@ -505,7 +534,7 @@ private
 
 		if Windows
 			ret.reject! { |x| not executable? x[1] }
-			ret.map! { |dir, file| [dir, file.gsub(/\.(exe|lnk|bat)$/i, '')] }
+			ret.map! { |dir, file| [dir, file.gsub(/\.(exe|lnk|bat)$/i, '')] } if not fullpath
 		end
 
 		ret.map! { |dir, file| [dir, escape(file)] }
@@ -533,6 +562,17 @@ private
 		input = input.gsub(/\\\*/, '.*')
 		input = input.split(//).map { |c| (c == c.downcase and c =~ /[a-zA-Z]/) ? "[#{c + c.upcase}]" : c }.join
 		return input
+	end
+
+	def absoluteFilePath?(input)
+		if Windows
+			return true if input.length > 1 and input[1].chr == ':'
+		end
+
+		return true if input[0].chr == '/'
+		return true if input =~ /^file:\/\// 
+		
+		return false
 	end
 
 	def executable?(file)
