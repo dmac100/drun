@@ -734,13 +734,19 @@ class CompletionWindow < Gtk::Window
 		else
 			selected = @treeview.selection.selected
 			if selected
-				# Move selection up or down
+				# Move selection up or down, wrapping start and end
 				path = selected.path
 				if forward
-					return if not selected.next!
-					path.next!
+					if selected.next!
+						path.next!
+					else
+						path = @liststore.iter_first.path
+					end
 				else
-					path.prev!
+					if not path.prev!
+						iter = @liststore.iter_first
+						path = iter.path while iter.next!
+					end
 				end
 			else
 				# If there isn't a selection, select the first row
