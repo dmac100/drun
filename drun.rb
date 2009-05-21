@@ -464,6 +464,9 @@ private
 			# Complete from executable and absolute path
 			ret += getCompletionHist(input, corrections)
 			ret += getCompletionDir(input, corrections)
+
+			# Sort by directory depth
+			ret = ret.sort_by { |x| x[0..-2].count '/' }
 		else
 			# Complete executable from history and path
 			ret += getCompletionHist(input, corrections)
