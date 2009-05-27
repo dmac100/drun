@@ -699,6 +699,7 @@ class CompletionWindow < Gtk::Window
 
 				@deletionblock.call(text)
 			end
+			changeCompletion
 			true
 		elsif (event.keyval == Gdk::Keyval::GDK_Shift_L) or (event.keyval == Gdk::Keyval::GDK_Shift_R)
 		elsif visible?
@@ -766,10 +767,12 @@ class CompletionWindow < Gtk::Window
 private
 	def changeCompletion
 		# Set the text entry to the selected completion
-		path = @treeview.selection.selected.path
-		text = @treeview.model.get_value(@liststore.get_iter(path), 0)
+		if @treeview.selection
+			path = @treeview.selection.selected.path
+			text = @treeview.model.get_value(@liststore.get_iter(path), 0)
 
-		@finishedcompletionblock.call(text) if @finishedcompletionblock
+			@finishedcompletionblock.call(text) if @finishedcompletionblock
+		end
 	end
 
 	def dismissCompletion
