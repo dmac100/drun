@@ -232,6 +232,7 @@ class Completion
 
 				prefix = link.TargetPath
 				input = escape(prefix)
+				input += ' ' + link.Arguments.split(' ').map { |x| escape(x) }.join(' ') if link.Arguments.length > 0
 				input += ' ' + suffix if suffix
 			end
 
