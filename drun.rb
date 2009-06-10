@@ -321,8 +321,8 @@ private
 				s += remaining
 				remaining = ''
 			elsif not quoted and remaining =~ /^\\/
-				# Backslashes followed by a letter are considered literal
-				s += '/' if remaining =~ /^\\[a-zA-Z]/
+				# Backslashes followed by non special characters are considered literal
+				s += '/' if remaining =~ /^\\[^"\\ ]/
 
 				s += remaining[1..1]
 				remaining = remaining[2..-1]
@@ -411,7 +411,7 @@ private
 
 	def expandAll(input)
 		input = split(input).map { |x| escape(expand(x, true)) }.join(' ')
-		input = input.gsub(/\//, '\\') if Windows
+		input = input.gsub(/\//, '\\\\') if Windows
 		return input
 	end
 
