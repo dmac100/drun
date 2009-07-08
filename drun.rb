@@ -827,11 +827,11 @@ class CompletionEntry < Gtk::Entry
 						@reversesearchendblock.call
 					else
 						@reversesearch = true
-						@reversesearchtext = self.text
+						@reversesearchtext = @window.text
 						completion = @reversecompletionblock.call(@reversesearchtext)
 						if completion
-							self.text = completion
-							self.position = self.text.length
+							@window.text = completion
+							@window.position = @window.text.length
 						end
 					end
 				elsif @reversesearch
@@ -857,8 +857,8 @@ class CompletionEntry < Gtk::Entry
 					if not endsearch
 						completion = @reversecompletionblock.call(@reversesearchtext)
 						if completion
-							self.text = completion
-							self.position = self.text.length
+							@window.text = completion
+							@window.position = @window.text.length
 						end
 						handledevent = true
 					end
@@ -876,7 +876,7 @@ class CompletionEntry < Gtk::Entry
 			end
 
 			if ignoreslashes
-				if slash and self.text == @completedtext and @completedtext =~ /\/"?$/
+				if slash and @window.text == @completedtext and @completedtext =~ /\/"?$/
 					@completedtext = nil
 					handledevent = true
 				end
@@ -916,22 +916,22 @@ class CompletionEntry < Gtk::Entry
 end
 
 # Main window displaying a completion entry which uses the completion class
-class Window < Gtk::Window
+class Window
 	def initialize
-		super
+		@window = Gtk::Window.new
 
 		@history = History.new(HistFile)
 		@completion = Completion.new(@history)
 
 		@completedtext = nil
 
-		set_type_hint(Gdk::Window::TYPE_HINT_DIALOG)
-		set_window_position(Gtk::Window::POS_CENTER_ALWAYS)
+		@window.set_type_hint(Gdk::Window::TYPE_HINT_DIALOG)
+		@window.set_window_position(Gtk::Window::POS_CENTER_ALWAYS)
 
-		set_border_width(4)
-		signal_connect('destroy') { Gtk.main_quit }
-		set_default_size(500, 50)
-		set_title('Run')
+		@window.set_border_width(4)
+		@window.signal_connect('destroy') { Gtk.main_quit }
+		@window.set_default_size(500, 50)
+		@window.set_title('Run')
 
 		vbox = Gtk::VBox.new(false, 1)
 
@@ -948,10 +948,10 @@ class Window < Gtk::Window
 		hbox.pack_start(@notFoundLabel, true, true)
 		vbox.pack_start(hbox, false, false)
 
-		@textentry = CompletionEntry.new(self)
+		@textentry = CompletionEntry.new(@window)
 		vbox.pack_start(@textentry, true, true)
 
-		add(vbox)
+		@window.add(vbox)
 
 		@textentry.setActivatedBlock { |inTerminal|
 			if @completion.execInput(@textentry.text, inTerminal)
@@ -1023,7 +1023,7 @@ class Window < Gtk::Window
 	end
 
 	def show_all
-		super
+		@window.show_all
 		@notFoundLabel.hide
 	end
 end
