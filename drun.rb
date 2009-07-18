@@ -876,7 +876,7 @@ class CompletionEntry < Gtk::Entry
 			end
 
 			if ignoreslashes
-				if slash and @window.text == @completedtext and @completedtext =~ /\/"?$/
+				if slash and self.text == @completedtext and @completedtext =~ /\/"?$/
 					@completedtext = nil
 					handledevent = true
 				end
