@@ -827,11 +827,11 @@ class CompletionEntry < Gtk::Entry
 						@reversesearchendblock.call
 					else
 						@reversesearch = true
-						@reversesearchtext = @window.text
+						@reversesearchtext = self.text
 						completion = @reversecompletionblock.call(@reversesearchtext)
 						if completion
-							@window.text = completion
-							@window.position = @window.text.length
+							self.text = completion
+							self.position = self.text.length
 						end
 					end
 				elsif @reversesearch
@@ -857,8 +857,8 @@ class CompletionEntry < Gtk::Entry
 					if not endsearch
 						completion = @reversecompletionblock.call(@reversesearchtext)
 						if completion
-							@window.text = completion
-							@window.position = @window.text.length
+							self.text = completion
+							self.position = self.text.length
 						end
 						handledevent = true
 					end
