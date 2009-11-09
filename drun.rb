@@ -768,7 +768,7 @@ class CompletionWindow < Gtk::Window
 private
 	def changeCompletion
 		# Set the text entry to the selected completion
-		if @treeview.selection
+		if @treeview.selection and @treeview.selection.selected
 			path = @treeview.selection.selected.path
 			text = @treeview.model.get_value(@liststore.get_iter(path), 0)
 
