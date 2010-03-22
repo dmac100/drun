@@ -564,7 +564,7 @@ private
 		input = Regexp.escape(input)
 		# Keep '*' glob from input
 		input = input.gsub(/\\\*/, '.*')
-		input = input.split(//).map { |c| (c == c.downcase and c =~ /[a-zA-Z]/) ? "[#{c + c.upcase}]" : c }.join
+		input = input.gsub(/[a-z]/) { |c| "[#{c + c.upcase}]" }
 		return input
 	end
 
