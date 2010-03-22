@@ -190,14 +190,16 @@ class Completion
 		return c
 	end
 
-	def getReverseCompletion(input)
+	def getReverseCompletion(input, position)
 		return nil if input == ''
 
-		input = createRegex(input)
-		@history.recent.map { |x|
-			return x if x =~ /#{input}/
-		}
-		return nil
+		completions = @history.recent.select { |x| x =~ /#{createRegex(input)}/ }
+
+		if position < completions.length
+			return completions[position]
+		else
+			return nil
+		end
 	end
 
 	def execInput(input, inTerminal=false)
@@ -822,17 +824,20 @@ class CompletionEntry < Gtk::Entry
 				end
 
 				if control and r
-					if @reversesearch
-						@reversesearch = nil
-						@reversesearchendblock.call
-					else
+					if not @reversesearch
+						@reversesearchposition = 0
 						@reversesearch = true
 						@reversesearchtext = self.text
-						completion = @reversecompletionblock.call(@reversesearchtext)
-						if completion
-							self.text = completion
-							self.position = self.text.length
-						end
+					else
+						@reversesearchposition += 1
+					end
+
+					completion = @reversecompletionblock.call(@reversesearchtext, @reversesearchposition)
+					if completion
+						self.text = completion
+						self.position = self.text.length
+					else
+						@reversesearchposition = 0
 					end
 				elsif @reversesearch
 					endsearch = false
@@ -855,7 +860,7 @@ class CompletionEntry < Gtk::Entry
 					end
 
 					if not endsearch
-						completion = @reversecompletionblock.call(@reversesearchtext)
+						completion = @reversecompletionblock.call(@reversesearchtext, @reversesearchposition)
 						if completion
 							self.text = completion
 							self.position = self.text.length
@@ -974,9 +979,9 @@ class Window
 			end
 		}
 
-		@textentry.setreversecompletionblock() { |text|
+		@textentry.setreversecompletionblock() { |text, position|
 			@runProgramLabel.text = "  reverse-i-search: #{text}"
-			@completion.getReverseCompletion(text)
+			@completion.getReverseCompletion(text, position)
 		}
 
 		@textentry.setReverseSearchEndBlock() {
