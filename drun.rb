@@ -286,16 +286,14 @@ class Completion
 
 		suffix = unescape(suffix)
 
-		if suffix =~ /(.*)\/$/
+		# Remove trailing slash
+		if suffix =~ /(.*)[\/\\]$/
 			suffix = $1
 		end
 
-		if suffix.count('/') == 1 and suffix =~ /^\/.+/
-			suffix = '/'
-		else
-			suffix =~ /^(.*\/)/
-			suffix = $1
-		end
+		# Remove everything after the last slash
+		suffix =~ /^(.*[\/\\])/
+		suffix = $1
 
 		return prefix if not suffix
 		return (prefix + ' ' + escape(suffix)).strip
@@ -835,7 +833,7 @@ class CompletionEntry < Gtk::Entry
 						@reversesearchposition = 0
 					end
 				elsif @reversesearch
-					endsearch = false
+					oldtext = @reversesearchtext
 
 					if Gdk::Keyval.to_unicode(event.keyval) > 0
 						@reversesearchtext += GLib::UniChar.to_utf8(event.keyval)
@@ -849,12 +847,12 @@ class CompletionEntry < Gtk::Entry
 						event.keyval == Gdk::Keyval::GDK_Home or
 						event.keyval == Gdk::Keyval::GDK_End
 
-						endsearch = true
 						@reversesearch = nil
 						@reversesearchendblock.call
 					end
 
-					if not endsearch
+					if @reversesearchtext != oldtext
+						@reversesearchposition = 0
 						completion = @reversecompletionblock.call(@reversesearchtext, @reversesearchposition)
 						if completion
 							self.text = completion
