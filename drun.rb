@@ -807,9 +807,10 @@ class CompletionEntry < Gtk::Entry
 
 			if enablereversesearch
 				control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
-				r = (event.keyval == Gdk::Keyval::GDK_r)
+				r = (event.keyval == Gdk::Keyval::GDK_r || event.keyval == Gdk::Keyval::GDK_R)
 				tab = (event.keyval == Gdk::Keyval::GDK_Tab)
 				ret = (event.keyval == Gdk::Keyval::GDK_Return)
+				shift = ((event.state & Gdk::Window::SHIFT_MASK) == Gdk::Window::SHIFT_MASK)
 
 				if tab or ret
 					@reversesearch = nil
@@ -822,7 +823,12 @@ class CompletionEntry < Gtk::Entry
 						@reversesearch = true
 						@reversesearchtext = self.text
 					else
-						@reversesearchposition += 1
+						if shift
+							@reversesearchposition -= 1
+							@reversesearchposition = 0 if @reversesearchposition < 0
+						else
+							@reversesearchposition += 1
+						end
 					end
 
 					completion = @reversecompletionblock.call(@reversesearchtext, @reversesearchposition)
