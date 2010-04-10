@@ -434,7 +434,7 @@ private
 
 	def expandHome(input)
 		if Windows
-			match = input.match(/^~\\/)
+			match = input.match(/^~[\\\/]/)
 			return input.sub(match[0], HOME + '/') if match
 		else
 			match = input.match(/^~[^\/]*/)
