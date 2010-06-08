@@ -59,7 +59,7 @@ class Configuration
 			#@sshHandler = "xterm -e ssh"
 			@fileHandler = "start"
 			@directoryHandler = "explorer"
-			@terminalHandler = "cmd"
+			@terminalHandler = "cmd /c"
 		else
 			@httpHandler = "firefox"
 			@sshHandler = "xterm -e ssh"
@@ -202,7 +202,7 @@ class Completion
 		end
 	end
 
-	def execInput(input, inTerminal=false)
+	def execInput(input, inTerminal=false, asAdmin)
 		config = Configuration.new(ConfigFile)
 
 		input = expandAll(input)
@@ -264,14 +264,36 @@ class Completion
 			end
 		end
 
-		input = "#{prog} #{input}"
-		input = config.terminalHandler + ' "' + input.gsub(/"/, '\\"') + '"' if inTerminal
+		input = "#{prog} #{input}" if prog
+		input = config.terminalHandler + ' ' + quote(input) if inTerminal
 		Dir.chdir $execpath if $execpath
 		input += " #{$execargs}" if $execargs
 
-		Thread.new { sleep 0.01; system(input) }
+		if asAdmin
+			execAdmin(input)
+		else
+			Thread.new { sleep 0.01; system(input) }
+		end
 
 		return true
+	end
+
+	def execAdmin(input)
+		if Windows
+			(cmd, args) = getPrefixSuffix(input, false)
+
+			shellExecute(cmd, args)
+		else
+			Thread.new { sleep 0.01; system('gksu ' + quote(input)) }
+		end
+	end
+
+	def shellExecute(cmd, args)
+		p = ''
+		p.replace(cmd)
+
+		shellExecute = Win32API.new('shell32', 'ShellExecute', ['P', 'P', 'P', 'P', 'P', 'I'], 'I')
+		shellExecute.Call(nil, 'runas', p, args, nil, 5)
 	end
 
 	def getParentDirectory(input)
@@ -299,6 +321,10 @@ class Completion
 		return (prefix + ' ' + escape(suffix)).strip
 	end
 private
+	def quote(input)
+		return '"' + input.gsub(/"/, '\\"') + '"'
+	end
+
 	def escape(input)
 		if Windows and input =~ / /
 			return '"' + input + '"'
@@ -620,7 +646,7 @@ class CompletionWindow < Gtk::Window
 		@treeview.insert_column(-1, "text", Gtk::CellRendererText.new, {:text => 0})
 		@treeview.signal_connect('cursor_changed') { changeCompletion }
 
-		@treeview.signal_connect('row_activated') { dismissCompletion; @activatedblock.call(false) }
+		@treeview.signal_connect('row_activated') { dismissCompletion; @activatedblock.call(false, false) }
 
 		@scroll = Gtk::ScrolledWindow.new
 		@scroll.add(@treeview)
@@ -676,7 +702,8 @@ class CompletionWindow < Gtk::Window
 
 		if ret
 			dismissCompletion
-			@activatedblock.call(control || shift)
+
+			@activatedblock.call(shift, control)
 			true
 		elsif up or down or pageup or pagedown
 			complete(down || pagedown)
@@ -957,8 +984,8 @@ class Window
 
 		@window.add(vbox)
 
-		@textentry.setActivatedBlock { |inTerminal|
-			if @completion.execInput(@textentry.text, inTerminal)
+		@textentry.setActivatedBlock { |inTerminal, asAdmin|
+			if @completion.execInput(@textentry.text, inTerminal, asAdmin)
 				@history.incCount(@textentry.text)
 				Gtk.main_quit
 			else
