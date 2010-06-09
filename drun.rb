@@ -202,7 +202,7 @@ class Completion
 		end
 	end
 
-	def execInput(input, inTerminal=false, asAdmin)
+	def execInput(input, inTerminal=false, asAdmin=false)
 		config = Configuration.new(ConfigFile)
 
 		input = expandAll(input)
