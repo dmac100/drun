@@ -687,18 +687,18 @@ class CompletionWindow < Gtk::Window
 
 	# Call to handle a gtk key press event
 	def keyPressEvent(event)
-		down = event.keyval == Gdk::Keyval::GDK_Down
-		down ||= event.keyval == Gdk::Keyval::GDK_Tab
-		up = event.keyval == Gdk::Keyval::GDK_Up
-		del = event.keyval == Gdk::Keyval::GDK_Delete
-		pagedown = event.keyval == Gdk::Keyval::GDK_Page_Down
-		pageup = event.keyval == Gdk::Keyval::GDK_Page_Up
+		down = event.keyval == Gdk::Keyval::GDK_KEY_Down
+		down ||= event.keyval == Gdk::Keyval::GDK_KEY_Tab
+		up = event.keyval == Gdk::Keyval::GDK_KEY_Up
+		del = event.keyval == Gdk::Keyval::GDK_KEY_Delete
+		pagedown = event.keyval == Gdk::Keyval::GDK_KEY_Page_Down
+		pageup = event.keyval == Gdk::Keyval::GDK_KEY_Page_Up
 
-		ret = event.keyval == Gdk::Keyval::GDK_Return
+		ret = event.keyval == Gdk::Keyval::GDK_KEY_Return
 		control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
 		shift = ((event.state & Gdk::Window::SHIFT_MASK) == Gdk::Window::SHIFT_MASK)
 
-		up ||= (shift and event.keyval == Gdk::Keyval::GDK_ISO_Left_Tab)
+		up ||= (shift and event.keyval == Gdk::Keyval::GDK_KEY_ISO_Left_Tab)
 
 		if ret
 			dismissCompletion
@@ -724,12 +724,12 @@ class CompletionWindow < Gtk::Window
 			end
 			changeCompletion
 			true
-		elsif (event.keyval == Gdk::Keyval::GDK_Shift_L) or (event.keyval == Gdk::Keyval::GDK_Shift_R)
+		elsif (event.keyval == Gdk::Keyval::GDK_KEY_Shift_L) or (event.keyval == Gdk::Keyval::GDK_KEY_Shift_R)
 		elsif visible?
 			# Any unhandled keypress dismisses the completion
 			dismissCompletion
 			# Don't pass escape event to parent
-			return (event.keyval == Gdk::Keyval::GDK_Escape)
+			return (event.keyval == Gdk::Keyval::GDK_KEY_Escape)
 		end
 	end
 
@@ -828,15 +828,15 @@ class CompletionEntry < Gtk::Entry
 		}
 
 		self.signal_connect('key_press_event') { |widget, event|
-			slash = (event.keyval == Gdk::Keyval::GDK_slash)
-			escape = (event.keyval == Gdk::Keyval::GDK_Escape)
-			slash ||= (event.keyval == Gdk::Keyval::GDK_backslash)
+			slash = (event.keyval == Gdk::Keyval::GDK_KEY_slash)
+			escape = (event.keyval == Gdk::Keyval::GDK_KEY_Escape)
+			slash ||= (event.keyval == Gdk::Keyval::GDK_KEY_backslash)
 
 			if enablereversesearch
 				control = ((event.state & Gdk::Window::CONTROL_MASK) == Gdk::Window::CONTROL_MASK)
-				r = (event.keyval == Gdk::Keyval::GDK_r || event.keyval == Gdk::Keyval::GDK_R)
-				tab = (event.keyval == Gdk::Keyval::GDK_Tab)
-				ret = (event.keyval == Gdk::Keyval::GDK_Return)
+				r = (event.keyval == Gdk::Keyval::GDK_KEY_r)
+				tab = (event.keyval == Gdk::Keyval::GDK_KEY_Tab)
+				ret = (event.keyval == Gdk::Keyval::GDK_KEY_Return)
 				shift = ((event.state & Gdk::Window::SHIFT_MASK) == Gdk::Window::SHIFT_MASK)
 
 				if tab or ret
@@ -870,15 +870,15 @@ class CompletionEntry < Gtk::Entry
 
 					if Gdk::Keyval.to_unicode(event.keyval) > 0
 						@reversesearchtext += GLib::UniChar.to_utf8(event.keyval)
-					elsif event.keyval == Gdk::Keyval::GDK_BackSpace
+					elsif event.keyval == Gdk::Keyval::GDK_KEY_BackSpace
 						@reversesearchtext = @reversesearchtext[0..-2]
 					elsif escape or
-						event.keyval == Gdk::Keyval::GDK_Left or
-						event.keyval == Gdk::Keyval::GDK_Right or
-						event.keyval == Gdk::Keyval::GDK_Up or
-						event.keyval == Gdk::Keyval::GDK_Down or
-						event.keyval == Gdk::Keyval::GDK_Home or
-						event.keyval == Gdk::Keyval::GDK_End
+						event.keyval == Gdk::Keyval::GDK_KEY_Left or
+						event.keyval == Gdk::Keyval::GDK_KEY_Right or
+						event.keyval == Gdk::Keyval::GDK_KEY_Up or
+						event.keyval == Gdk::Keyval::GDK_KEY_Down or
+						event.keyval == Gdk::Keyval::GDK_KEY_Home or
+						event.keyval == Gdk::Keyval::GDK_KEY_End
 
 						@reversesearch = nil
 						@reversesearchendblock.call
@@ -1017,8 +1017,8 @@ class Window
 		@textentry.setDeletionBlock() { |text| @history.delete(text) }
 
 		@textentry.setKeyPressBlock() { |event|
-			up = event.keyval == Gdk::Keyval::GDK_Up
-			down = event.keyval == Gdk::Keyval::GDK_Down
+			up = event.keyval == Gdk::Keyval::GDK_KEY_Up
+			down = event.keyval == Gdk::Keyval::GDK_KEY_Down
 			alt = ((event.state & Gdk::Window::MOD1_MASK) == Gdk::Window::MOD1_MASK)
 
 			handled = false
