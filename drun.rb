@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+#!/usr/bin/ruby -Ku
 
 # drun gnome run dialog
 # Copyright (C) 2008 David Maciver
