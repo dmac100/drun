@@ -138,13 +138,13 @@ class History
 			@entries += [[1, input]]
 		end
 
-		# Only save 500 most significant entries
-		@entries = @entries[0...500] if @entries.length > 500
+		# Only save 1000 most significant entries
+		@entries = @entries[0...1000] if @entries.length > 1000
 
 		# Update recent entries
 		@recent = [input] + @recent
 		@recent.uniq!
-		@recent = @recent[0...500] if @recent.length > 500
+		@recent = @recent[0...1000] if @recent.length > 1000
 
 		# Update history file
 		writeFile
@@ -537,8 +537,10 @@ private
 	end
 
 	def getCompletionHist(input, corrections)
-		# Completes based on history
-		beginsWith(@history.entries.map { |x| x[1] }, input, corrections)
+		# Completes based on history. Show completions by count first, then any recent matches.
+		byCount = beginsWith(@history.entries.map { |x| x[1] }, input, corrections)
+		byRecent = beginsWith(@history.recent, input, corrections)
+		return byCount + (byRecent - byCount)
 	end
 
 	def getCompletionPath(input, corrections)
