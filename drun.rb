@@ -236,6 +236,13 @@ class Completion
 				link = shell.CreateShortcut(file)
 
 				prefix = link.TargetPath
+
+				# Replace (x86) if necessary because reading the shortcut target on 32-bit ruby incorrectly replaces it.
+				correctedPrefix = prefix.gsub(/ \(x86\)/, '')
+				if not File.exists? prefix and File.exists? correctedPrefix
+					prefix = correctedPrefix
+				end
+
 				input = escape(prefix)
 				input += ' ' + link.Arguments.split(' ').map { |x| escape(x) }.join(' ') if link.Arguments.length > 0
 				input += ' ' + suffix if suffix
