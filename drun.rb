@@ -18,6 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 require 'gtk2'
+require 'fileutils'
 
 Windows = (ENV['OS'] =~ /Windows/)
 
@@ -159,6 +160,8 @@ class History
 	end
 private
 	def writeFile
+		FileUtils.cp(@histfile, @histfile + '.bak') if File.exists? @histfile
+
 		# Writes entries to HistFile
 		File.open(@histfile, 'w') { |file|
 			@recent.each { |x|
