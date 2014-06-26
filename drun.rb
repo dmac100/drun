@@ -606,6 +606,7 @@ private
 			return true if input.length > 1 and input[1].chr == ':'
 		end
 
+		return true if input.empty?
 		return true if input[0].chr == '/'
 		return true if input =~ /^file:\/\// 
 		
