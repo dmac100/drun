@@ -665,7 +665,7 @@ class CompletionWindow < Gtk::Window
 		@scroll.add(@treeview)
 		@scroll.set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC)
 		set_transient_for(parent)
-		set_default_size(350, 200)
+		set_default_size(490, 200)
 		set_accept_focus(false)
 
 		frame = Gtk::Frame.new
