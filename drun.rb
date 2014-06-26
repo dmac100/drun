@@ -225,7 +225,7 @@ class Completion
 
 			prefix = unescape(prefix.strip)
 
-			return if prefix == ''
+			return false if prefix == ''
 
 			prefix = which(prefix) if which(prefix)
 
@@ -269,7 +269,7 @@ class Completion
 						input = "#{prefix} #{suffix}"
 					end
 				elsif not executable? prefix
-					return
+					return false
 				end
 			end
 		end
